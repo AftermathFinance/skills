@@ -20,7 +20,7 @@ Think of them as specialized instruction sets — when you point your AI agent a
 
 | Skill | Description | Status |
 |-------|-------------|--------|
-| [API](./skills/api/aftermath-api.md) | Interact with the Aftermath public REST API — fetch market data, pool info, pricing, and more | ✅ Stable |
+| [API](./skills/api/SKILL.md) | Interact with Aftermath Perpetuals APIs (CCXT + native), SDK flows, risk controls, and monitoring patterns | ✅ Stable |
 
 > More skills will be added as new integration surfaces arise. See [Roadmap](#roadmap) below.
 
@@ -51,7 +51,9 @@ aftermath-skills/
 ├── LICENSE                     # Apache License
 └── skills/
     └── api/                    # One directory per skill
-        └── aftermath-api.md    # The skill definition
+        ├── SKILL.md            # Main skill definition and routing
+        ├── ccxt.md             # CCXT endpoint reference
+        └── native.md           # Native perpetuals endpoint reference
 ```
 
 Each skill lives in its own directory under `skills/`. A skill directory contains at minimum one skill file, but may also include supplementary files like example code, schemas, or reference data.
