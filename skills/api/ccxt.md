@@ -2,8 +2,10 @@
 
 > CCXT-compatible endpoints under `/api/ccxt/*`.
 
+Use CCXT when you need exchange-style request/response compatibility. For full Aftermath feature coverage, prefer native perpetuals endpoints in `native.md`.
+
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-09`
+Last validated: `2026-02-21`
 
 ---
 

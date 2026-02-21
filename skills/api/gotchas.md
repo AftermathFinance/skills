@@ -1,6 +1,6 @@
 # Gotchas & Edge Cases
 
-> Common pitfalls when integrating with the public API at `https://aftermath.finance.lp/docs`.
+> Common pitfalls when integrating with the public API at `https://aftermath.finance/docs`.
 
 ---
 
@@ -47,15 +47,9 @@ Keep the cursor from each response if you need full history backfill.
 
 ---
 
-## 5) `order-datas` Uses Structured Inputs
+## 5) Stop-Order Data Requires Signed Auth
 
-`/api/perpetuals/account/order-datas` expects:
-
-```text
-{ accountId, orderDatas: [...] }
-```
-
-not a simple `orderIds` array.
+`/api/perpetuals/account/stop-order-datas` requires auth payload fields (`walletAddress`, `bytes`, `signature`) plus exactly one target (`accountId` or `vaultId`).
 
 ---
 
@@ -95,7 +89,7 @@ After any fill/cancel/withdraw/deposit/leverage update, refresh account and posi
 
 When docs and examples disagree, verify against:
 
-- `https://aftermath.finance.lp/api/openapi/spec.json`
+- `https://aftermath.finance/api/openapi/spec.json`
 
 Schema drift is normal; hardcode less and validate request shapes in code.
 
