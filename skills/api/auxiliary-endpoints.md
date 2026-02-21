@@ -7,7 +7,7 @@
 ## Use This File When
 
 - You need endpoints not covered by `ccxt.md` or `native.md`.
-- You are implementing integrator flows, builder codes, referrals, or coin metadata.
+- You are implementing integrator flows, builder codes, referrals, rewards, or coin metadata.
 
 ---
 
@@ -67,6 +67,31 @@ POST /api/referrals/link
   "walletAddress": "0x...",
   "bytes": "...",
   "signature": "..."
+}
+```
+
+---
+
+## Rewards
+
+```text
+POST /api/rewards/claimable
+POST /api/rewards/history
+POST /api/rewards/transactions/claim
+```
+
+Minimal request examples:
+
+```typescript
+POST /api/rewards/claimable
+{ "walletAddress": "0x..." }
+```
+
+```typescript
+POST /api/rewards/transactions/claim
+{
+  "walletAddress": "0x...",
+  "recipientAddress": "0x..."
 }
 ```
 

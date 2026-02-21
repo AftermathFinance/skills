@@ -250,4 +250,4 @@ await vault.getProcessForceWithdrawRequestTx({ walletAddress, sizesToClose, reci
 
 ## Fee Structure
 
-See the official docs for current fee tiers: https://docs.aftermath.finance/perpetuals/aftermath-perpetuals
+See the official docs for current fee tiers: https://aftermath.finance/docs

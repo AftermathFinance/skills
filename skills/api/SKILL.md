@@ -1,7 +1,7 @@
 ---
 name: aftermath-perpetuals
-description: Practical skill for integrating Aftermath Perpetuals via CCXT-compatible endpoints, native perpetuals endpoints, and the TypeScript SDK.
-version: 2.2.0
+description: Practical skill for integrating Aftermath Perpetuals with native endpoints as the default (full feature set), plus CCXT-compatible endpoints and the TypeScript SDK.
+version: 2.3.0
 capabilities:
   - api-integration
   - sdk-integration
@@ -15,22 +15,26 @@ capabilities:
 # Aftermath Perpetuals Skill
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-09`
+Last validated: `2026-02-21`
 Canonical docs UI: `https://aftermath.finance/docs`
 
 ## Fast Routing
 
 Choose one file first; do not load everything by default.
 
+Default preference: start with native perpetuals endpoints (`/api/perpetuals/*`) because they expose the full Aftermath feature set. Use CCXT endpoints when you specifically need exchange-style compatibility.
+
 1. CCXT endpoint work -> `ccxt.md`
 2. Native perpetuals endpoint work -> `native.md`
 3. SDK method usage -> `sdk-reference.md`
 4. API failures/retries -> `error-handling.md`
 5. Trading safeguards -> `safety-and-risk.md`
-6. Builder codes/referrals/coins utility routes -> `auxiliary-endpoints.md`
+6. Builder codes/referrals/rewards/coins utility routes -> `auxiliary-endpoints.md`
 7. Edge-case pitfalls -> `gotchas.md`
 
 ## Integration Modes
+
+Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API coverage.
 
 | Mode | Best for | Primary file |
 |---|---|---|
@@ -52,7 +56,7 @@ Choose one file first; do not load everything by default.
 |---|---|
 | `ccxt.md` | You need `/api/ccxt/*` endpoints or stream setup |
 | `native.md` | You need `/api/perpetuals/*` account/market/vault APIs |
-| `auxiliary-endpoints.md` | You need builder-codes, referrals, coins, utility txs |
+| `auxiliary-endpoints.md` | You need builder-codes, referrals, rewards, coins, utility txs |
 | `sdk-reference.md` | You are coding with SDK classes and methods |
 | `error-handling.md` | You are implementing retry, backoff, and failure parsing |
 | `safety-and-risk.md` | You are shipping a bot or live strategy safeguards |
