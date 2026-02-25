@@ -5,7 +5,7 @@
 Use CCXT when you need exchange-style request/response compatibility. For full Aftermath feature coverage, prefer native perpetuals endpoints in `native.md`.
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-21`
+Last validated: `2026-02-25`
 
 ---
 
@@ -119,6 +119,7 @@ interface SubmitTransactionRequest {
 
 Notes:
 - Sign `signingDigest`, not `transactionBytes`.
+- `signatures` can contain multiple signatures (for example sender + separate gas owner/sponsor signer).
 - `OrderRequest` does not currently include `clientOrderId`, `timeInForce`, or `postOnly`.
 
 ---

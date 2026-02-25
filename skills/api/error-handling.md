@@ -69,11 +69,11 @@ function shouldRetry(error: any): boolean {
 ## 4) Build-Sign-Submit Retry Pattern
 
 ```typescript
-async function submitCcxtTx({ buildUrl, submitUrl, buildBody, signFn }: {
+async function submitCcxtTx({ buildUrl, submitUrl, buildBody, signFns }: {
   buildUrl: string;
   submitUrl: string;
   buildBody: any;
-  signFn: (signingDigest: string) => Promise<string>;
+  signFns: Array<(signingDigest: string) => Promise<string>>;
 }) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -83,12 +83,12 @@ async function submitCcxtTx({ buildUrl, submitUrl, buildBody, signFn }: {
         body: JSON.stringify(buildBody),
       }).then(r => r.json());
 
-      const signature = await signFn(build.signingDigest);
+      const signatures = await Promise.all(signFns.map(fn => fn(build.signingDigest)));
 
       const res = await fetch(submitUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionBytes: build.transactionBytes, signatures: [signature] }),
+        body: JSON.stringify({ transactionBytes: build.transactionBytes, signatures }),
       });
 
       const body = await res.json();
@@ -101,6 +101,8 @@ async function submitCcxtTx({ buildUrl, submitUrl, buildBody, signFn }: {
   }
 }
 ```
+
+If the sender and gas owner are different, include both signatures in submit payload order expected by your signer stack.
 
 ---
 

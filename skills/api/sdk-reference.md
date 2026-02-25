@@ -135,9 +135,9 @@ This flow corresponds to native stop-order data and transaction routes. Reach fo
 ### History
 
 ```typescript
-const { orderHistory, nextBeforeTimestampCursor } = await account.getOrderHistory({ limit: 50 });
-const { collateralHistory } = await account.getCollateralHistory({ limit: 50 });
-const { marginHistoryDatas } = await account.getMarginHistory({ fromTimestamp, toTimestamp, intervalMs });
+const { orders, nextBeforeTimestampCursor } = await account.getOrderHistory({ limit: 50 });
+const { collateralChanges, nextBeforeTimestampCursor: nextCollateralCursor } = await account.getCollateralHistory({ limit: 50 });
+const { marginHistoryDatas } = await account.getMarginHistory({ accountId: account.accountId(), timeframe: "1W" });
 ```
 
 ---

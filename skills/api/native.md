@@ -5,7 +5,7 @@
 This is the preferred and canonical API surface for integrations because it exposes the complete feature set beyond CCXT compatibility.
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-21`
+Last validated: `2026-02-25`
 
 ---
 
@@ -36,13 +36,16 @@ Top-used explicit routes:
 ```text
 POST /api/perpetuals/account/previews/place-market-order
 POST /api/perpetuals/account/previews/place-limit-order
+POST /api/perpetuals/account/previews/place-scale-order
 POST /api/perpetuals/account/previews/cancel-orders
 POST /api/perpetuals/account/previews/set-leverage
 POST /api/perpetuals/account/previews/edit-collateral
 
 POST /api/perpetuals/account/transactions/place-market-order
 POST /api/perpetuals/account/transactions/place-limit-order
+POST /api/perpetuals/account/transactions/place-scale-order
 POST /api/perpetuals/account/transactions/cancel-orders
+POST /api/perpetuals/account/transactions/cancel-and-place-orders
 POST /api/perpetuals/account/transactions/set-leverage
 POST /api/perpetuals/account/transactions/deposit-collateral
 POST /api/perpetuals/account/transactions/withdraw-collateral
@@ -90,6 +93,7 @@ POST /api/perpetuals/vault/previews/deposit
 POST /api/perpetuals/vault/previews/create-withdraw-request
 POST /api/perpetuals/vault/previews/place-market-order
 POST /api/perpetuals/vault/previews/place-limit-order
+POST /api/perpetuals/vault/previews/place-scale-order
 POST /api/perpetuals/vault/previews/cancel-orders
 POST /api/perpetuals/vault/previews/set-leverage
 POST /api/perpetuals/vault/previews/edit-collateral
@@ -105,7 +109,9 @@ POST /api/perpetuals/vault/transactions/create-vault
 POST /api/perpetuals/vault/transactions/create-vault-cap
 POST /api/perpetuals/vault/transactions/place-market-order
 POST /api/perpetuals/vault/transactions/place-limit-order
+POST /api/perpetuals/vault/transactions/place-scale-order
 POST /api/perpetuals/vault/transactions/cancel-orders
+POST /api/perpetuals/vault/transactions/cancel-and-place-orders
 POST /api/perpetuals/vault/transactions/set-leverage
 POST /api/perpetuals/vault/transactions/allocate-collateral
 POST /api/perpetuals/vault/transactions/deallocate-collateral
@@ -164,7 +170,7 @@ Content-Type: application/json
   "limit": 50,
   "beforeTimestampCursor": null
 }
-// -> { orderHistory: [...], nextBeforeTimestampCursor: number | null }
+// -> { orders: [...], nextBeforeTimestampCursor: number | null }
 ```
 
 ### Stop order datas (signed auth)
@@ -177,6 +183,7 @@ Content-Type: application/json
   "walletAddress": "0x...",
   "bytes": "...",
   "signature": "...",
+  "marketIds": ["0x..."],
   "accountId": 123
 }
 ```

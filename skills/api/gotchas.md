@@ -100,3 +100,11 @@ Schema drift is normal; hardcode less and validate request shapes in code.
 There is no protocol-level scheduled cancel safety net for your bot.
 
 Implement a heartbeat-driven kill switch that cancels all open orders when the strategy loop stalls or process health checks fail.
+
+---
+
+## 12) CCXT Submit May Require Multiple Signatures
+
+`/api/ccxt/submit/*` accepts `signatures[]`, not a single signature.
+
+When sender and gas owner are different, collect both signatures over the same `signingDigest` before submit.

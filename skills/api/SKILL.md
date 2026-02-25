@@ -1,7 +1,7 @@
 ---
 name: aftermath-perpetuals
 description: Practical skill for integrating Aftermath Perpetuals with native endpoints as the default (full feature set), plus CCXT-compatible endpoints and the TypeScript SDK.
-version: 2.3.0
+version: 2.4.0
 capabilities:
   - api-integration
   - sdk-integration
@@ -15,7 +15,7 @@ capabilities:
 # Aftermath Perpetuals Skill
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-21`
+Last validated: `2026-02-25`
 Canonical docs UI: `https://aftermath.finance/docs`
 
 ## Fast Routing
@@ -49,6 +49,14 @@ Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API c
 - Treat preview responses as success/error unions.
 - Re-sync snapshots after stream reconnect before applying deltas.
 - Serialize coin/gas-object-sensitive operations to avoid version conflicts.
+
+## Recent API Updates
+
+- Native account/vault routes include `place-scale-order` and `cancel-and-place-orders` transaction support.
+- Account history payloads use `orders` (order history) and `collateralChanges` (collateral history).
+- Margin history requests use `timeframe` (`1D | 1W | 1M | ALL`) with `accountId`.
+- Stop-order data requests support optional `marketIds` filtering.
+- CCXT submit supports one-or-more `signatures` when sender and gas owner differ.
 
 ## Progressive Disclosure
 

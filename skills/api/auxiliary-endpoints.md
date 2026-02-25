@@ -46,6 +46,10 @@ POST /api/perpetuals/builder-codes/integrator-vaults
 }
 ```
 
+Response data reminder:
+
+- `integratorVaults[]` entries include `marketId`, `collateralCoinType`, `fees`, and `feesUsd`.
+
 ---
 
 ## Referrals
