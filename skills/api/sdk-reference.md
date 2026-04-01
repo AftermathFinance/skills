@@ -30,7 +30,10 @@ const perps = afSdk.Perpetuals();
 - SDK market reads generally map to native market endpoints under `/api/perpetuals/markets*` and `/api/perpetuals/market*`.
 - SDK account transactions/previews generally map to `/api/perpetuals/account/transactions/*` and `/api/perpetuals/account/previews/*`.
 - SDK vault operations generally map to `/api/perpetuals/vault/transactions/*` and `/api/perpetuals/vault/previews/*`.
+- If you need deferred account creation / PTB composition details, drop to raw HTTP for `/api/perpetuals/transactions/create-account` and `/api/perpetuals/account/transactions/share`.
 - Use SDK when you want typed abstractions; use `native.md` for exact HTTP schemas.
+
+The SDK smooths over many raw API serialization details, including native integer fields that OpenAPI may describe as decimal strings or values with trailing `n`.
 
 ### Market Discovery
 
@@ -250,4 +253,4 @@ await vault.getProcessForceWithdrawRequestTx({ walletAddress, sizesToClose, reci
 
 ## Fee Structure
 
-See the official docs for current fee tiers: https://aftermath.finance/docs
+See the official docs for current fee tiers: `https://aftermath.finance/docs`

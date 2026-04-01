@@ -5,7 +5,7 @@
 Use CCXT when you need exchange-style request/response compatibility. For full Aftermath feature coverage, prefer native perpetuals endpoints in `native.md`.
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-25`
+Last validated: `2026-03-31`
 
 ---
 
@@ -82,6 +82,7 @@ const ws = new WebSocket("wss://aftermath.finance/api/perpetuals/ws/updates");
 | `chId` | Market object ID |
 | `accountId` | Account capability object ID (for writes) |
 | `accountNumber` | Numeric account identifier (for reads/streams) |
+| `account` | Balance lookup identifier accepted by `/api/ccxt/balance` |
 
 ---
 
@@ -120,7 +121,9 @@ interface SubmitTransactionRequest {
 Notes:
 - Sign `signingDigest`, not `transactionBytes`.
 - `signatures` can contain multiple signatures (for example sender + separate gas owner/sponsor signer).
+- `POST /api/ccxt/balance` expects `account`, not `accountId` or `accountNumber`.
 - `OrderRequest` does not currently include `clientOrderId`, `timeInForce`, or `postOnly`.
+- CCXT order responses can still include nullable fields such as `clientOrderId`, `postOnly`, `timeInForce`, `stopPrice`, and `takeProfitPrice`.
 
 ---
 

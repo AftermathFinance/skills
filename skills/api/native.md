@@ -5,7 +5,7 @@
 This is the preferred and canonical API surface for integrations because it exposes the complete feature set beyond CCXT compatibility.
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-25`
+Last validated: `2026-03-31`
 
 ---
 
@@ -19,6 +19,8 @@ POST /api/perpetuals/accounts
 POST /api/perpetuals/accounts/positions
 POST /api/perpetuals/account/max-order-size
 POST /api/perpetuals/account/order-history
+POST /api/perpetuals/account/order-history-detailed
+POST /api/perpetuals/account/order-history-detailed-csv
 POST /api/perpetuals/account/collateral-history
 POST /api/perpetuals/account/margin-history
 POST /api/perpetuals/account/stop-order-datas
@@ -56,6 +58,7 @@ POST /api/perpetuals/account/transactions/place-stop-orders
 POST /api/perpetuals/account/transactions/place-sl-tp-orders
 POST /api/perpetuals/account/transactions/edit-stop-orders
 POST /api/perpetuals/account/transactions/cancel-stop-orders
+POST /api/perpetuals/account/transactions/share
 POST /api/perpetuals/account/transactions/grant-agent-wallet
 POST /api/perpetuals/account/transactions/revoke-agent-wallet
 ```
@@ -99,7 +102,9 @@ POST /api/perpetuals/vault/previews/set-leverage
 POST /api/perpetuals/vault/previews/edit-collateral
 POST /api/perpetuals/vault/previews/owner/process-withdraw-requests
 POST /api/perpetuals/vault/previews/owner/withdraw-collateral
+POST /api/perpetuals/vault/previews/owner/withdraw-locked-liquidity
 POST /api/perpetuals/vault/previews/owner/withdraw-performance-fees
+POST /api/perpetuals/vault/previews/pause-vault-for-force-withdraw-request
 POST /api/perpetuals/vault/previews/process-force-withdraw-request
 
 POST /api/perpetuals/vault/transactions/deposit
@@ -127,6 +132,7 @@ POST /api/perpetuals/vault/transactions/owner/update-force-withdraw-delay
 POST /api/perpetuals/vault/transactions/owner/update-lock-period
 POST /api/perpetuals/vault/transactions/owner/update-performance-fee
 POST /api/perpetuals/vault/transactions/owner/withdraw-collateral
+POST /api/perpetuals/vault/transactions/owner/withdraw-locked-liquidity
 POST /api/perpetuals/vault/transactions/owner/withdraw-performance-fees
 ```
 
@@ -149,6 +155,8 @@ GET /api/perpetuals/ws/market-candles/{market_id}/{interval_ms}
 
 Do not pass CCXT account capability object IDs (`0x...`) where numeric `accountId` is required.
 
+OpenAPI descriptions for many native `int64`/`u128`-style fields document decimal-string serialization, sometimes with an optional trailing `n` (for example `"123"` or `"123n"`). Be liberal in parsing raw HTTP payloads if you are not using the SDK.
+
 ---
 
 ## Correct Native Examples
@@ -157,7 +165,7 @@ Required-field reminders for high-risk routes:
 
 - `/api/perpetuals/all-markets`: requires `collateralCoinType`.
 - `/api/perpetuals/account/max-order-size`: requires `marketId`, numeric `accountId`, and `side` (`0` bid, `1` ask).
-- `/api/perpetuals/account/stop-order-datas`: requires auth payload (`walletAddress`, `bytes`, `signature`) plus exactly one target (`accountId` or `vaultId`).
+- `/api/perpetuals/account/stop-order-datas`: requires auth payload (`walletAddress`, `bytes`, `signature`) plus optional `marketIds` and account-or-vault targeting fields.
 
 ### Account order history (cursor pagination)
 
@@ -171,6 +179,34 @@ Content-Type: application/json
   "beforeTimestampCursor": null
 }
 // -> { orders: [...], nextBeforeTimestampCursor: number | null }
+```
+
+### Account detailed trade history
+
+```http
+POST /api/perpetuals/account/order-history-detailed
+Content-Type: application/json
+
+{
+  "accountId": "123n",
+  "limit": 100,
+  "afterTimestampCursor": null,
+  "beforeTimestampCursor": null
+}
+// -> { trades: [...], nextBeforeTimestampCursor: number | null }
+```
+
+### Account detailed trade history CSV
+
+```http
+POST /api/perpetuals/account/order-history-detailed-csv
+Content-Type: application/json
+
+{
+  "accountId": "123",
+  "limit": 100
+}
+// -> { csv: "..." }
 ```
 
 ### Stop order datas (signed auth)
@@ -203,6 +239,12 @@ X-Error-Message: true
 ```
 
 Treat preview responses as success/error unions.
+
+More specifically:
+
+- Order and cancel previews commonly return a `oneOf` success-or-`{ error }` schema.
+- Several vault admin previews return `PerpetualsErrorResponse` on `200` for validation-style checks.
+- `/api/perpetuals/vault/previews/pause-vault-for-force-withdraw-request` returns a normal `TxKindResponse`.
 
 ---
 

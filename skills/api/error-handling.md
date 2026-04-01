@@ -24,7 +24,7 @@ Some preview routes can return HTTP `200` with an error payload:
 type PerpetualsErrorResponse = { error: string };
 ```
 
-When this happens, response header `X-Error-Message: true` is set.
+When this happens, `data.error` is the primary signal. Response header `X-Error-Message: true` is useful when present, but do not depend on it as the only detector.
 
 ---
 
@@ -108,6 +108,12 @@ If the sender and gas owner are different, include both signatures in submit pay
 
 ## 5) Preview Endpoint Guard
 
+Preview behavior is not uniform:
+
+- Order and cancel previews often use explicit success/error unions.
+- Several vault admin previews return `PerpetualsErrorResponse` on HTTP `200` when validation fails.
+- `/api/perpetuals/vault/previews/pause-vault-for-force-withdraw-request` returns a normal `TxKindResponse`.
+
 ```typescript
 async function callPreview(url: string, payload: unknown) {
   const res = await fetch(url, {
@@ -117,7 +123,7 @@ async function callPreview(url: string, payload: unknown) {
   });
 
   const data = await res.json();
-  const isPreviewError = res.headers.get("X-Error-Message") === "true" || !!data?.error;
+  const isPreviewError = !!data?.error || res.headers.get("X-Error-Message") === "true";
 
   if (!res.ok || isPreviewError) {
     throw new Error(data?.error ?? data?.message ?? `Preview failed (${res.status})`);

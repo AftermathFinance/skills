@@ -1,7 +1,7 @@
 ---
 name: aftermath-perpetuals
 description: Practical skill for integrating Aftermath Perpetuals with native endpoints as the default (full feature set), plus CCXT-compatible endpoints and the TypeScript SDK.
-version: 2.4.0
+version: 2.5.0
 capabilities:
   - api-integration
   - sdk-integration
@@ -15,7 +15,7 @@ capabilities:
 # Aftermath Perpetuals Skill
 
 Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-02-25`
+Last validated: `2026-03-31`
 Canonical docs UI: `https://aftermath.finance/docs`
 
 ## Fast Routing
@@ -29,7 +29,7 @@ Default preference: start with native perpetuals endpoints (`/api/perpetuals/*`)
 3. SDK method usage -> `sdk-reference.md`
 4. API failures/retries -> `error-handling.md`
 5. Trading safeguards -> `safety-and-risk.md`
-6. Builder codes/referrals/rewards/coins utility routes -> `auxiliary-endpoints.md`
+6. Builder codes/gas pool/referrals/rewards/coins utility routes -> `auxiliary-endpoints.md`
 7. Edge-case pitfalls -> `gotchas.md`
 
 ## Integration Modes
@@ -52,11 +52,13 @@ Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API c
 
 ## Recent API Updates
 
-- Native account/vault routes include `place-scale-order` and `cancel-and-place-orders` transaction support.
-- Account history payloads use `orders` (order history) and `collateralChanges` (collateral history).
+- Native account/vault routes include `place-scale-order`, `cancel-and-place-orders`, and account `share` transaction support.
+- Account history now includes both `orders` (order history) and detailed `trades` / CSV export routes.
 - Margin history requests use `timeframe` (`1D | 1W | 1M | ALL`) with `accountId`.
 - Stop-order data requests support optional `marketIds` filtering.
+- Vault owner flows include locked-liquidity withdraw routes and a preview route for pausing force-withdraw processing.
 - CCXT submit supports one-or-more `signatures` when sender and gas owner differ.
+- Rewards endpoints include signed points lookups, and auxiliary docs now cover the gas pool service.
 
 ## Progressive Disclosure
 
@@ -64,7 +66,7 @@ Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API c
 |---|---|
 | `ccxt.md` | You need `/api/ccxt/*` endpoints or stream setup |
 | `native.md` | You need `/api/perpetuals/*` account/market/vault APIs |
-| `auxiliary-endpoints.md` | You need builder-codes, referrals, rewards, coins, utility txs |
+| `auxiliary-endpoints.md` | You need builder-codes, gas pool, referrals, rewards, coins, utility txs |
 | `sdk-reference.md` | You are coding with SDK classes and methods |
 | `error-handling.md` | You are implementing retry, backoff, and failure parsing |
 | `safety-and-risk.md` | You are shipping a bot or live strategy safeguards |
