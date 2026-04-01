@@ -7,7 +7,7 @@
 ## Use This File When
 
 - You need endpoints not covered by `ccxt.md` or `native.md`.
-- You are implementing integrator flows, builder codes, referrals, rewards, or coin metadata.
+- You are implementing integrator flows, gas pool flows, referrals, rewards, or coin metadata.
 
 ---
 
@@ -16,12 +16,97 @@
 ```text
 POST /api/perpetuals/transactions/create-account
 POST /api/perpetuals/transactions/transfer-cap
+POST /api/perpetuals/account/transactions/share
 ```
 
 Required fields:
 
 - `create-account`: `walletAddress`, `collateralCoinType`
-- `transfer-cap`: `recipientAddress`, `capObjectId`
+- `transfer-cap`: `recipientAddress`
+- `share`: account/share-policy arguments from deferred create flow
+
+Composition notes:
+
+- `create-account` supports `deferShare`, optional `txKind`, and optional sponsorship.
+- Deferred create-account responses can include `deferred` argument references for follow-up `/api/perpetuals/account/transactions/share` composition.
+- `transfer-cap` supports composed flow fields, so do not assume `capObjectId` is always required.
+
+Minimal request example:
+
+```typescript
+POST /api/perpetuals/transactions/create-account
+{
+  "walletAddress": "0x...",
+  "collateralCoinType": "0xdba...::usdc::USDC",
+  "deferShare": true
+}
+// -> { txKind, deferred?: { accountArg, adminCapArg, sharePolicyArg, collateralCoinType } }
+```
+
+---
+
+## Gas Pool
+
+```text
+POST /api/gas-pool/pool
+POST /api/gas-pool/transactions/create
+POST /api/gas-pool/transactions/deposit
+POST /api/gas-pool/transactions/withdraw
+POST /api/gas-pool/transactions/grant
+POST /api/gas-pool/transactions/revoke
+POST /api/gas-pool/transactions/share
+POST /api/gas-pool/transactions/sponsor
+```
+
+Read route:
+
+- `pool`: returns `walletAddress`, `balance`, `whitelistedAddresses`, and nullable `gasPoolId`.
+
+Composition notes:
+
+- `create` supports optional `initialDepositAmount`, optional `txKind`, and `deferShare` for PTB composition.
+- Deferred `create` responses can include `gasPoolArg` and `sharePolicyArg`; pass them to `share` to finalize the gas pool.
+- `deposit` supports direct SUI deposits and non-SUI swap-to-SUI deposits via `coinType`, `amount`, optional `coinArg`, and optional `slippage`.
+- `withdraw` supports `deferTransfer` and can return `withdrawnCoinArg` for downstream PTB composition.
+- `grant` / `revoke` use `targetWalletAddress`.
+- `sponsor` rebates the tx sponsor from the gas pool using `walletAddress` and `amount`.
+- Most gas-pool tx builders return `TxKindResponse`; `create` and `withdraw` may additionally return PTB argument references.
+
+Minimal request examples:
+
+```typescript
+POST /api/gas-pool/pool
+{ "walletAddress": "0x..." }
+```
+
+```typescript
+POST /api/gas-pool/transactions/create
+{
+  "walletAddress": "0x...",
+  "deferShare": true,
+  "initialDepositAmount": 1000000000
+}
+// -> { txKind, gasPoolArg?, sharePolicyArg? }
+```
+
+```typescript
+POST /api/gas-pool/transactions/deposit
+{
+  "walletAddress": "0x...",
+  "coinType": "0x2::sui::SUI",
+  "amount": 1000000000
+}
+```
+
+```typescript
+POST /api/gas-pool/transactions/withdraw
+{
+  "walletAddress": "0x...",
+  "amount": 500000000,
+  "deferTransfer": true
+}
+// -> { txKind, withdrawnCoinArg? }
+```
 
 ---
 
@@ -81,6 +166,7 @@ POST /api/referrals/link
 ```text
 POST /api/rewards/claimable
 POST /api/rewards/history
+POST /api/rewards/points
 POST /api/rewards/transactions/claim
 ```
 
@@ -92,12 +178,26 @@ POST /api/rewards/claimable
 ```
 
 ```typescript
-POST /api/rewards/transactions/claim
+POST /api/rewards/points
 {
   "walletAddress": "0x...",
-  "recipientAddress": "0x..."
+  "bytes": "{\"action\":\"GET_POINTS\"}",
+  "signature": "..."
 }
 ```
+
+```typescript
+POST /api/rewards/transactions/claim
+{
+  "walletAddress": "0x..."
+}
+```
+
+Request/response notes:
+
+- `claim` requires `walletAddress`; `coinTypes`, `recipientAddress`, and `txKind` are optional.
+- `history` supports `cursor`, `limit`, and optional `domain` filtering.
+- `points` is a signed request returning `{ points }`.
 
 ---
 
@@ -115,6 +215,14 @@ Minimal request example:
 POST /api/coins/metadata
 { "coins": ["0x2::sui::SUI"] }
 ```
+
+Response note:
+
+- Coin metadata entries can include `iconUrl`, `id`, `isGenerated`, and `metadataType` in addition to `name`, `symbol`, `description`, and `decimals`.
+
+Referral response note:
+
+- `/api/referrals/link` returns structured fields including `status`, `refCode`, `refereeAddress`, and `createdAt`.
 
 ---
 

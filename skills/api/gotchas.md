@@ -49,7 +49,7 @@ Keep the cursor from each response if you need full history backfill.
 
 ## 5) Stop-Order Data Requires Signed Auth
 
-`/api/perpetuals/account/stop-order-datas` requires auth payload fields (`walletAddress`, `bytes`, `signature`) plus exactly one target (`accountId` or `vaultId`).
+`/api/perpetuals/account/stop-order-datas` and `/api/perpetuals/vault/stop-order-datas` require auth payload fields (`walletAddress`, `bytes`, `signature`). Optional `marketIds` narrows the response, and raw request schemas still model account-or-vault targeting fields.
 
 ---
 
@@ -95,7 +95,23 @@ Schema drift is normal; hardcode less and validate request shapes in code.
 
 ---
 
-## 11) No Built-In Dead Man's Switch
+## 11) Native Integer Fields May Arrive as Strings
+
+Native `accountId`, timestamps, order IDs, and amount-like fields are sometimes documented as decimal strings, optionally with trailing `n`.
+
+If you bypass the SDK, parse raw HTTP payloads carefully instead of assuming all numeric-looking values are plain JSON numbers.
+
+---
+
+## 12) Deferred Create Flows Change Response Shape
+
+`/api/perpetuals/transactions/create-account` can return deferred PTB argument references when `deferShare = true`.
+
+Do not hardcode the response as `{ txKind }` only if you compose transactions client-side.
+
+---
+
+## 13) No Built-In Dead Man's Switch
 
 There is no protocol-level scheduled cancel safety net for your bot.
 
@@ -103,7 +119,7 @@ Implement a heartbeat-driven kill switch that cancels all open orders when the s
 
 ---
 
-## 12) CCXT Submit May Require Multiple Signatures
+## 14) CCXT Submit May Require Multiple Signatures
 
 `/api/ccxt/submit/*` accepts `signatures[]`, not a single signature.
 
