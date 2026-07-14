@@ -1,7 +1,7 @@
 ---
 name: aftermath-perpetuals
 description: Practical skill for integrating Aftermath Perpetuals with native endpoints as the default (full feature set), plus CCXT-compatible endpoints and the TypeScript SDK.
-version: 2.5.0
+version: 3.0.0
 capabilities:
   - api-integration
   - sdk-integration
@@ -9,13 +9,18 @@ capabilities:
   - position-monitoring
   - risk-analysis
   - vault-management
+  - dca
+  - limit-orders
+  - staking
+  - pools
+  - prices
   - error-handling
 ---
 
 # Aftermath Perpetuals Skill
 
-Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-03-31`
+Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
+Last validated: `2026-07-28`
 Canonical docs UI: `https://aftermath.finance/docs`
 
 ## Fast Routing
@@ -29,8 +34,13 @@ Default preference: start with native perpetuals endpoints (`/api/perpetuals/*`)
 3. SDK method usage -> `sdk-reference.md`
 4. API failures/retries -> `error-handling.md`
 5. Trading safeguards -> `safety-and-risk.md`
-6. Builder codes/gas pool/referrals/rewards/coins utility routes -> `auxiliary-endpoints.md`
-7. Edge-case pitfalls -> `gotchas.md`
+6. DCA and spot limit orders -> `dca-and-limit-orders.md`
+7. Staking -> `staking.md`
+8. AMM pools -> `pools.md`
+9. Coin and LP prices -> `prices.md`
+10. Builder codes/gas pool/referrals/rewards/rebates/router/metastable/birdeye/dynamic gas/zkLogin/coins -> `auxiliary-endpoints.md`
+11. Monitoring examples -> `monitoring-patterns.md`
+12. Edge-case pitfalls -> `gotchas.md`
 
 ## Integration Modes
 
@@ -46,19 +56,33 @@ Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API c
 
 - Sign `signingDigest`, not `transactionBytes`.
 - Keep ID types strict: CCXT write `accountId` (object ID) vs native `accountId` (numeric).
+- Send native BigInt fields using their exact `"...n"` wire format where required.
 - Treat preview responses as success/error unions.
 - Re-sync snapshots after stream reconnect before applying deltas.
 - Serialize coin/gas-object-sensitive operations to avoid version conflicts.
 
 ## Recent API Updates
 
-- Native account/vault routes include `place-scale-order`, `cancel-and-place-orders`, and account `share` transaction support.
-- Account history now includes both `orders` (order history) and detailed `trades` / CSV export routes.
-- Margin history requests use `timeframe` (`1D | 1W | 1M | ALL`) with `accountId`.
-- Stop-order data requests support optional `marketIds` filtering.
-- Vault owner flows include locked-liquidity withdraw routes and a preview route for pausing force-withdraw processing.
-- CCXT submit supports one-or-more `signatures` when sender and gas owner differ.
-- Rewards endpoints include signed points lookups, and auxiliary docs now cover the gas pool service.
+Breaking (v3.0.0):
+
+- Builder codes migrated from per-market integrator vaults to a global integrator registration: `integratorAddress` (address string) is replaced by `integratorId` (`u32`) everywhere, order-level `builderCode.takerFee` is now `builderCode.integratorFee`, config `maxTakerFee` is now `maxIntegratorFee`, and the integrator-vault fetch/create/claim routes are removed.
+- Candle streaming moved to the general updates WebSocket (`/api/perpetuals/ws/updates`) via a `marketCandles` subscription; the dedicated `/api/perpetuals/ws/market-candles/{market_id}/{interval_ms}` route is removed.
+- Candle intervals are CCXT-style timeframe strings everywhere: native `candle-history` uses `resolution` (was `intervalMs`) and CCXT OHLCV uses `timeframe`. See `native.md` for the full enum.
+- SL/TP price fields are `stopLossPrice` and `takeProfitPrice`. Transaction inputs add optional `triggerPriceType` (`0` index, `1` book mid, `2` mark) and per-SL/TP/stop-order `builderCode`; basic history responses contain only the prices.
+- Rewards `points` response is `{ totalPoints }` (float, was `{ points }` integer) and `/api/rewards/history` now requires signed auth (`bytes` + `signature`); history entries carry `eventType`.
+- Removed response fields: position `makerFee`/`takerFee`; vault `totalCollateral`/`totalCollateralUsd`; market params `gasPriceTwapPeriodMs`, `forceCancelFee`, `gasPriceTakerFee`, `zScoreThreshold` (replaced by `priorityTakerFee`); liquidation `forceCancelFeesUsd`. Price-feed IDs are numeric (`u32`) instead of address strings.
+
+Additive (v3.0.0):
+
+- TWAP orders: `/api/perpetuals/account/twap-order-datas` plus `create-twap-orders` / `edit-twap-orders` / `cancel-twap-orders` transaction routes.
+- Client order IDs: `clientOrderId`(s) on limit/scale/cancel-and-place order placement, plus client-ID cancellation on supported transaction routes.
+- Deterministic ordering, funding history, vault assistant capabilities, rebate tooling, scale orders, cancel-and-place, account sharing, and expanded account history.
+- Vault TWAP orders: `/api/perpetuals/vault/twap-order-datas` plus `create-twap-orders` / `edit-twap-orders` / `cancel-twap-orders` vault transaction routes (mirrors the account TWAP surface).
+- Rewards estimator: `POST /api/rewards/expectedRewards` returns forward-looking per-domain expected rewards for an epoch.
+- Market metadata: `POST /api/perpetuals/markets` entries carry nullable static display metadata; `displayName` is omitted when unavailable.
+- WS user subscription payloads now also stream `twapOrders` alongside stop orders.
+- Vault discovery adds predeposit totals and per-vault TVL.
+- Endpoint coverage now includes current DCA and spot limit-order flows, all staking routes, all pool routes, and all price routes.
 
 ## Progressive Disclosure
 
@@ -66,15 +90,20 @@ Preferred by default: Native perpetuals (`/api/perpetuals/*`) for complete API c
 |---|---|
 | `ccxt.md` | You need `/api/ccxt/*` endpoints or stream setup |
 | `native.md` | You need `/api/perpetuals/*` account/market/vault APIs |
-| `auxiliary-endpoints.md` | You need builder-codes, gas pool, referrals, rewards, coins, utility txs |
+| `dca-and-limit-orders.md` | You need DCA or spot limit-order reads and transaction builders |
+| `staking.md` | You need staking metrics, positions, validators, or capabilities |
+| `pools.md` | You need AMM pools, stats, LP ownership, volume, fees, or events |
+| `prices.md` | You need coin, LP, or external-ID prices |
+| `auxiliary-endpoints.md` | You need builder codes, gas pool, referrals, rewards, rebates, router, metastable, Birdeye, dynamic gas, zkLogin, coins, or utility transactions |
 | `sdk-reference.md` | You are coding with SDK classes and methods |
 | `error-handling.md` | You are implementing retry, backoff, and failure parsing |
 | `safety-and-risk.md` | You are shipping a bot or live strategy safeguards |
+| `monitoring-patterns.md` | You need polling, pagination, WebSocket, or resync examples |
 | `gotchas.md` | You need a pre-launch pitfalls checklist |
 
 ## 24h Change Check
 
-Use the local helper script to check for OpenAPI changes after the 24h window.
+Use the local helper script to check the production OpenAPI after the 24h window.
 
 - Script: `skills/api/scripts/check_api_changes.py`
 - Behavior: if less than 24h since `Last validated`, it exits without querying.

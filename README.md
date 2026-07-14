@@ -20,7 +20,8 @@ Think of them as specialized instruction sets — when you point your AI agent a
 
 | Skill | Description | Status |
 |-------|-------------|--------|
-| [API](./skills/api/SKILL.md) | Interact with Aftermath Perpetuals APIs (CCXT + native), SDK flows, risk controls, and monitoring patterns | ✅ Stable |
+| [API](./skills/api/SKILL.md) | Perpetuals, CCXT, DCA, staking, pools, prices, SDK flows, and operational safety | Stable |
+| [Gas](./skills/gas/SKILL.md) | Sui Move gas analysis and optimization | Stable |
 
 > More skills will be added as new integration surfaces arise. See [Roadmap](#roadmap) below.
 
@@ -46,14 +47,19 @@ Include the skill file as a resource in your agent's context when making request
 
 ```
 aftermath-skills/
-├── README.md
-├── CONTRIBUTING.md             # How to contribute new skills
-├── LICENSE                     # Apache License
-└── skills/
-    └── api/                    # One directory per skill
-        ├── SKILL.md            # Main skill definition and routing
-        ├── ccxt.md             # CCXT endpoint reference
-        └── native.md           # Native perpetuals endpoint reference
+|-- README.md
+|-- CONTRIBUTING.md             # How to contribute new skills
+|-- LICENSE                     # Apache License
+`-- skills/
+    |-- api/                    # One directory per skill
+        |-- SKILL.md            # Main skill definition and routing
+        |-- ccxt.md             # CCXT endpoint reference
+        |-- native.md           # Native perpetuals endpoint reference
+        |-- pools.md            # AMM pool endpoints
+        |-- staking.md          # Staking endpoints
+        `-- ...                 # Focused API references and guidance
+    `-- gas/
+        `-- SKILL.md            # Sui Move gas optimization
 ```
 
 Each skill lives in its own directory under `skills/`. A skill directory contains at minimum one skill file, but may also include supplementary files like example code, schemas, or reference data.
@@ -62,7 +68,6 @@ Each skill lives in its own directory under `skills/`. A skill directory contain
 
 Potential future skills (not yet available):
 
-- **TypeScript SDK** — Working with the `aftermath-ts-sdk` to build integrations programmatically
 - **Rust SDK** — Working with the `aftermath-sdk-rust` to build integrations programmatically
 - **Move Contracts** — Understanding and interacting with Aftermath's on-chain Move modules
 

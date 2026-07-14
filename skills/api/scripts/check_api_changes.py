@@ -10,10 +10,11 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 SPEC_URL = "https://aftermath.finance/api/openapi/spec.json"
+USER_AGENT = "Mozilla/5.0 OpenCode API validation"
 
 
 @dataclass
@@ -47,13 +48,18 @@ def load_state(state_path: Path) -> dict:
 
 
 def fetch_spec_hash(url: str) -> str:
-    with urlopen(url) as response:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request) as response:
         body = response.read()
     return hashlib.sha256(body).hexdigest()
 
 
 def ask_yes_no(prompt: str) -> bool:
-    ans = input(prompt).strip().lower()
+    try:
+        ans = input(prompt).strip().lower()
+    except EOFError:
+        print()
+        return False
     return ans in {"y", "yes"}
 
 
@@ -89,9 +95,9 @@ def main() -> int:
         )
         return 0
 
+    prompt_prefix = "Forced check requested. " if args.force else "More than 24h since Last validated. "
     should_query = ask_yes_no(
-        "More than 24h since Last validated. "
-        f"Query {SPEC_URL} for API changes now? [y/N]: "
+        f"{prompt_prefix}Query {SPEC_URL} for API changes now? [y/N]: "
     )
     if not should_query:
         print("No query executed. State unchanged.")

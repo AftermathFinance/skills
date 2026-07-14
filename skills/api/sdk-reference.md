@@ -1,6 +1,6 @@
 # TypeScript SDK Reference
 
-> Complete reference for `@aftermath-finance/sdk`. Use this for frontend apps, complex integrations, and vault management.
+> Selected `@aftermath-finance/sdk` perpetuals flows. Verify method and field names against your installed SDK version.
 
 ---
 
@@ -33,7 +33,7 @@ const perps = afSdk.Perpetuals();
 - If you need deferred account creation / PTB composition details, drop to raw HTTP for `/api/perpetuals/transactions/create-account` and `/api/perpetuals/account/transactions/share`.
 - Use SDK when you want typed abstractions; use `native.md` for exact HTTP schemas.
 
-The SDK smooths over many raw API serialization details, including native integer fields that OpenAPI may describe as decimal strings or values with trailing `n`.
+The SDK smooths over raw HTTP serialization, including native fields that require `"...n"` strings on direct requests. Use `native.md` for exact HTTP contracts.
 
 ### Market Discovery
 
@@ -75,7 +75,6 @@ const { tx } = await account.getPlaceMarketOrderTx({
   collateralChange: 5000,  // Add 5000 USDC
   reduceOnly: false,
   leverage: 5,
-  slTp: { stopLossIndexPrice: 40000, takeProfitIndexPrice: 50000 }  // Optional
 });
 
 // Limit order

@@ -4,8 +4,8 @@
 
 Use CCXT when you need exchange-style request/response compatibility. For full Aftermath feature coverage, prefer native perpetuals endpoints in `native.md`.
 
-Verified against OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-03-31`
+Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
+Last validated: `2026-07-28`
 
 ---
 
@@ -21,6 +21,8 @@ POST /api/ccxt/ticker
 POST /api/ccxt/OHLCV
 POST /api/ccxt/trades
 ```
+
+`OHLCV` requires `chId` and accepts optional `timeframe`, `since`, and `limit`. `timeframe` defaults to `"1h"`; supported labels are `1m | 5m | 15m | 30m | 1h | 4h | 12h | 1d | 3d | 1w | 1mo`. The API clamps `limit` to `512`.
 
 ### Account reads
 
@@ -53,24 +55,13 @@ GET /api/ccxt/stream/positions?accountNumber={number}
 GET /api/ccxt/stream/trades?chId={marketId}
 ```
 
-OpenAPI currently models these GET stream routes with request-body schemas (`chId`/`accountNumber`). Browser `EventSource` cannot send request bodies, so validate query-parameter behavior in your deployment before relying on it.
-
-Canonical client pattern: use query parameters for browser/EventSource clients.
-
-Because OpenAPI models request bodies on these GET stream routes, treat stream transport as deployment-specific. Validate once in staging, then lock one mode for production.
-
-If query-based SSE is not accepted in your environment, use native WebSocket updates via `/api/perpetuals/ws/updates` and adapt payload handling.
-
-Do not rely on GET request bodies for browser clients.
-
 ```typescript
-const BASE_URL = "https://aftermath.finance";
+const orderbookWs = new WebSocket(
+  `wss://aftermath.finance/api/ccxt/stream/orderbook?chId=${marketId}`,
+);
 
-// Browser SSE (canonical)
-const es = new EventSource(`${BASE_URL}/api/ccxt/stream/orderbook?chId=${marketId}`);
-
-// Native WS fallback
-const ws = new WebSocket("wss://aftermath.finance/api/perpetuals/ws/updates");
+// Alternative native multiplexed WebSocket API
+const nativeWs = new WebSocket("wss://aftermath.finance/api/perpetuals/ws/updates");
 ```
 
 ---
@@ -97,6 +88,17 @@ interface OrderRequest {
   price?: number;
   reduceOnly?: boolean;
   expirationTimestampMs?: number;
+  clientOrderId?: string;
+}
+
+interface CancelOrdersRequest {
+  accountId: string;
+  chId: string;
+  orderIds: string[];
+  deallocateFreeCollateral: boolean;
+  metadata: TransactionMetadata;
+  shouldAbortOnMissingId?: boolean; // default false: missing IDs tolerated
+  clientOrderIds?: string[];        // client-managed IDs to cancel, in addition to orderIds
 }
 
 interface TransactionMetadata {
@@ -104,7 +106,7 @@ interface TransactionMetadata {
   gasBudget?: number;
   gasPrice?: number;
   sponsor?: string;
-  gasCoins?: Array<{ objectId: string; version: string | number; digest: string }>;
+  gasCoins?: Array<{ objectId: string; version: number; digest: string }>;
 }
 
 interface TransactionBuildResponse {
@@ -120,10 +122,21 @@ interface SubmitTransactionRequest {
 
 Notes:
 - Sign `signingDigest`, not `transactionBytes`.
+- `signingDigest` is base64-encoded. Decode it before signing unless your signer accepts base64 directly.
+- Each `signatures` entry is a base64-encoded complete Sui `UserSignature` byte sequence.
 - `signatures` can contain multiple signatures (for example sender + separate gas owner/sponsor signer).
 - `POST /api/ccxt/balance` expects `account`, not `accountId` or `accountNumber`.
-- `OrderRequest` does not currently include `clientOrderId`, `timeInForce`, or `postOnly`.
-- CCXT order responses can still include nullable fields such as `clientOrderId`, `postOnly`, `timeInForce`, `stopPrice`, and `takeProfitPrice`.
+- `OrderRequest` supports optional `clientOrderId`. Do not send unsupported `timeInForce` or `postOnly` fields.
+- CCXT order responses can still include omitted or nullable fields such as `clientOrderId`, `postOnly`, `timeInForce`, `stopPrice`, and `takeProfitPrice`.
+
+Submit responses:
+
+| Route suffix | Response |
+|---|---|
+| `createAccount` | `Account[]` |
+| `deposit`, `withdraw` | `Account` |
+| `allocate`, `deallocate`, `setLeverage` | `Position` |
+| `createOrders`, `cancelOrders` | `Order[]` |
 
 ---
 
@@ -149,13 +162,15 @@ Content-Type: application/json
 POST /api/ccxt/trades
 Content-Type: application/json
 
-{ "chId": "0x...", "limit": 200, "cursor": null, "until": null }
+{ "chId": "0x...", "limit": 50, "cursor": null, "until": null }
 // -> { trades: Trade[], nextCursor: number | null }
 ```
+
+The API clamps trade pages to `50`. Omitting `until` uses the current time.
 
 ---
 
 ## Source of Truth
 
 - Swagger UI: `https://aftermath.finance/docs`
-- OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
+- Production OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
