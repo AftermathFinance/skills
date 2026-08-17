@@ -15,6 +15,7 @@ POST /api/pools/interaction-events-by-user
 POST /api/pools/owned-lp-coins
 POST /api/pools/pool-object-ids
 POST /api/pools/stats
+POST /api/pools/summary
 GET  /api/pools/total-swap-volume/{duration_ms}
 POST /api/pools/tvl
 POST /api/pools/{pool_id}/events/{event_type}
@@ -112,6 +113,21 @@ returns a bare `string[]` in request order. Unknown entries can map to an empty
 string.
 
 ## Statistics and TVL
+
+### Batched pool summaries
+
+`POST /api/pools/summary` accepts the same optional filter as the pool-object
+read:
+
+```typescript
+type PoolSummariesRequest = { poolIds?: string[] | null };
+type PoolSummary = { pool: PoolObject; stats: PoolStats };
+```
+
+The response is a bare `PoolSummary[]`. Omitting `poolIds` or passing `null`
+returns all pools. The service batches and caches the underlying pool objects
+and 24-hour statistics for roughly 30 seconds. The TypeScript SDK v2.3.0
+exposes this as `sdk.Pools().getPoolSummaries(inputs?, abortSignal?)`.
 
 `POST /api/pools/stats` requires `{ poolIds: string[] }` and returns one
 `PoolStats` per requested ID:

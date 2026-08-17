@@ -151,3 +151,59 @@ If your integration predates skill v3.0.0, these renames and removals will break
 Connect to CCXT stream routes with WebSockets and pass `chId` or
 `accountNumber` as query parameters. Do not use `EventSource` or GET request
 bodies for these streams.
+
+## 18) Reusable Auth Is Not Action-Specific JSON
+
+Current service-authenticated routes require base64 bytes that decode exactly to
+`Aftermath Terms and Conditions`. Sign that message once and reuse the
+signature. DCA/limit cancellation IDs, referral codes, and history filters are
+plain request fields. Old SDK helpers that generate `CANCEL_*`, referral
+action/date, or `SPONSOR_GAS` JSON are stale for this service. See
+`authentication.md`.
+
+## 19) Gas Budget Units Are MIST
+
+Gas-pool sponsorship and embedded perpetuals sponsor configs accept optional
+`gasBudget` in SUI MIST. Supplying it asks the service to sign at exactly that
+budget; omitting it lets the service derive one. Do not send a human-readable
+SUI amount.
+
+## 20) Address-Balance Gas Is a Separate CCXT Funding Mode
+
+`metadata.gasFromAddressBalance` cannot be combined with `gasCoins`.
+`fromAddressBalance` and `toAddressBalance` on CCXT deposit/withdraw are also
+exclusive choices, not additive fallbacks. This mode adds a single-epoch
+expiration and changes which SUI balance pays embedded oracle fees.
+
+## 21) Summary Routes Return Composite Objects
+
+`POST /api/pools/summary` returns `{ pool, stats }[]`, not `PoolStats[]`.
+`POST /api/farms/summary` returns `{ farmId, tvl, rewardsTvl }[]`. Both routes
+cache computed data for about 30 seconds and accept optional ID filters.
+
+## 22) Kebab-Case Normalization Is Enforced
+
+Use `/api/rewards/expected-rewards` and the other hyphenated paths in
+`endpoint-inventory.md`. A camelCase spelling such as
+`/api/rewards/expectedRewards` is not a compatibility alias.
+
+## 23) zkLogin Takes a Public Key
+
+`POST /api/zklogin/create` accepts base64 `ephemeralPublicKey`, not an
+ephemeral private keypair. Keep the private key client-side and preserve the
+route's downstream 400/401/502/504 status semantics.
+
+## 24) SDK Route Names Are Not Proof of Service Support
+
+The v2.3.0 SDK still contains removed integrator-vault builders and legacy
+router/DCA/auth methods. Compare the SDK method's literal `fetchApi` path with
+the current service inventory before shipping an integration; use the raw API
+when a typed helper is behind the service.
+
+## 25) Gas-Pool Errors Are Actionable
+
+Gas-pool failures are mapped to `2030` (insufficient funds), `2031`
+(temporarily unavailable), `2032` (authorization), or `2033` (transaction not
+sponsorable). `2018` is the generic shared-service fallback and `2034` is
+signature verification. Use the error code and headers to choose between
+backoff, wallet re-authentication, and rebuilding the transaction.

@@ -5,7 +5,11 @@
 This is the preferred and canonical API surface for integrations because it exposes the complete feature set beyond CCXT compatibility.
 
 Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
-Last validated: `2026-07-28`
+Production spec last hashed: `2026-07-28`
+Local service snapshot: `service-af-fe` `a0ab6c1` (2026-08-16)
+
+For reusable wallet signatures, read `authentication.md`. For the complete
+route audit, read `endpoint-inventory.md`.
 
 ---
 
@@ -78,6 +82,7 @@ POST /api/perpetuals/markets/orderbooks
 POST /api/perpetuals/market/candle-history
 POST /api/perpetuals/market/funding-history
 POST /api/perpetuals/market/order-history
+GET  /api/perpetuals/config
 ```
 
 ### Account capability utilities
@@ -86,6 +91,26 @@ POST /api/perpetuals/market/order-history
 POST /api/perpetuals/transactions/create-account
 POST /api/perpetuals/transactions/transfer-cap
 ```
+
+### Sponsored transactions and returned gas
+
+Where a native transaction request exposes a `sponsor` object, use this shape:
+
+```typescript
+type SponsorConfig = {
+  walletAddress: string;
+  bytes: string;       // base64 of the fixed terms message
+  signature: string;   // signature over the decoded terms bytes
+  gasBudget?: number;  // SUI MIST; omit for service-derived budget
+};
+```
+
+The reusable signed bytes must decode exactly to `Aftermath Terms and
+Conditions`; transaction inputs, account IDs, and order data are not signed.
+See `authentication.md` for the common signature and gas-pool error codes.
+When an order operation returns reclaimable gas coins, the service transfers
+them to the account or vault owner, including when the transaction was
+sponsored; do not treat that gas as permanently belonging to the sponsor.
 
 ### Vaults
 
@@ -161,6 +186,7 @@ POST /api/perpetuals/vault/transactions/owner/withdraw-performance-fees
 ```text
 POST /api/perpetuals/rebates/rewards
 POST /api/perpetuals/rebates/create-csv-rebates
+POST /api/perpetuals/rebates/create-referral-csv-rebates
 ```
 
 ### WebSocket proxy
@@ -189,6 +215,12 @@ All live streams — including market candles — flow through this single gener
   - `userCollateralChanges`: `{ accountId }` — collateral change updates.
   - `topOfOrderbook`: `{ marketId, priceBucketSize, bucketsNumber }` for bucketed top-of-book snapshots.
   - `marketCandles`: `{ marketId, interval }` for OHLCV candle updates; `interval` is one of `1m | 5m | 15m | 30m | 1h | 4h | 12h | 1d | 3d | 1w | 1mo`.
+
+When `user.withStopOrders` is present, `bytes` must be base64 for the exact
+UTF-8 terms message `Aftermath Terms and Conditions`, and `signature` must be
+over those decoded bytes. The proxy verifies the pair before forwarding the
+subscription. It is reusable; do not sign an account/market/action JSON
+object. See `authentication.md` for the signing snippet.
 
 Candle updates arrive as:
 
@@ -234,7 +266,8 @@ Required-field reminders for high-risk routes:
 - `/api/perpetuals/market/funding-history`: requires `marketId`, `fromTimestamp`, and `toTimestamp`; `limit` is nullable.
 - `/api/perpetuals/account/max-order-size`: requires `marketId`, `accountId: "...n"`, and `side` values `0` bid or `1` ask. Returns `{ maxOrderSize: "...n" }`.
 - `/api/perpetuals/account/stop-order-datas`: requires `walletAddress`, `bytes`, `signature`, and exactly one target: `accountId: "...n"` or `vaultId`. `marketIds` is optional.
-- `/api/perpetuals/account/twap-order-datas` and `/api/perpetuals/vault/twap-order-datas`: `details.size`, `processedAmount`, and `scheduledAmount` are `"...n"` strings. Optional detail expiry timestamps also use `"...n"`; `lastExecutionTimestampMs` is a raw JSON number. Vault TWAP transactions mirror the account create/edit/cancel routes.
+- `/api/perpetuals/account/twap-order-datas` and `/api/perpetuals/vault/twap-order-datas` require `walletAddress`, `bytes`, and `signature`; the same fixed terms message is checked before the downstream query. Their `details.size`, `processedAmount`, and `scheduledAmount` values are `"...n"` strings; optional detail expiry timestamps also use `"...n"`, while `lastExecutionTimestampMs` is a raw JSON number. Vault TWAP transactions mirror the account create/edit/cancel routes.
+- `/api/perpetuals/account/order-history` and `/api/perpetuals/account/collateral-history` accept optional `authentication: { walletAddress, bytes, signature }` in the current service schema. If present, it must use the fixed terms message; the service strips the auth fields before forwarding.
 - `/api/perpetuals/vaults/owned-vault-assistant-caps`: requires `walletAddress` and returns `ownedVaultAssistantCaps`.
 
 ### SL/TP and stop orders
@@ -314,12 +347,22 @@ Content-Type: application/json
 
 {
   "walletAddress": "0x...",
-  "bytes": "...",
-  "signature": "...",
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>",
   "marketIds": ["0x..."],
   "accountId": "123n"
 }
 ```
+
+### Network configuration
+
+```http
+GET /api/perpetuals/config
+```
+
+Returns `{ aflpVaultId, officialVaultIds, defaultCollateralCoinType }` for
+the current network. A static-enricher outage returns a 500-style API error;
+do not silently substitute an empty vault list or collateral type.
 
 ### Vault predeposit totals and TVL
 

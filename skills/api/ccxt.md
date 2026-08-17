@@ -107,6 +107,7 @@ interface TransactionMetadata {
   gasPrice?: number;
   sponsor?: string;
   gasCoins?: Array<{ objectId: string; version: number; digest: string }>;
+  gasFromAddressBalance?: boolean;
 }
 
 interface TransactionBuildResponse {
@@ -127,6 +128,10 @@ Notes:
 - `signatures` can contain multiple signatures (for example sender + separate gas owner/sponsor signer).
 - `POST /api/ccxt/balance` expects `account`, not `accountId` or `accountNumber`.
 - `OrderRequest` supports optional `clientOrderId`. Do not send unsupported `timeInForce` or `postOnly` fields.
+- `metadata.gasFromAddressBalance` is mutually exclusive with `gasCoins`. When true, pay gas from the gas owner's SUI address balance; the transaction carries the required single-epoch expiration.
+- `/api/ccxt/build/deposit` accepts `fromAddressBalance` (default `false`) to fund the deposit from the sender's address balance instead of owned coin objects. Do not mix both funding modes.
+- `/api/ccxt/build/withdraw` accepts `toAddressBalance` (default `false`) to deliver withdrawn funds to the sender's address balance instead of an owned coin object.
+- When address-balance gas is enabled, embedded oracle update fees are paid from the sender's SUI balance. `gasBudget` remains denominated in SUI MIST.
 - CCXT order responses can still include omitted or nullable fields such as `clientOrderId`, `postOnly`, `timeInForce`, `stopPrice`, and `takeProfitPrice`.
 
 Submit responses:
@@ -152,7 +157,21 @@ Content-Type: application/json
   "orders": [{ "chId": "0x...", "type": "limit", "side": "buy", "amount": 0.01, "price": 95000 }],
   "accountId": "0x...",
   "deallocateFreeCollateral": false,
-  "metadata": { "sender": "0x..." }
+  "metadata": { "sender": "0x...", "gasFromAddressBalance": true }
+}
+```
+
+Address-balance deposit example:
+
+```http
+POST /api/ccxt/build/deposit
+Content-Type: application/json
+
+{
+  "accountId": "0x...",
+  "amount": 10,
+  "fromAddressBalance": true,
+  "metadata": { "sender": "0x...", "gasFromAddressBalance": true }
 }
 ```
 

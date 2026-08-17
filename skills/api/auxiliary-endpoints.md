@@ -15,6 +15,8 @@ Use focused references for larger families:
 - Staking: `staking.md`
 - AMM pools: `pools.md`
 - Coin and LP prices: `prices.md`
+- General wallet/auth/Sui/config/stable-kitchen/DEX Screener routes: `general-endpoints.md`
+- Reusable signed-request rules: `authentication.md`
 
 ---
 
@@ -76,7 +78,9 @@ Composition notes:
 - `deposit` supports direct SUI deposits and non-SUI swap-to-SUI deposits via `coinType`, optional `amount: "...n"`, optional `coinArg`, and optional `slippage`.
 - `withdraw` requires `amount: "...n"`, supports `deferTransfer`, and can return `withdrawnCoinArg` for downstream PTB composition.
 - `grant` / `revoke` use `targetWalletAddress`.
-- `sponsor` rebates the tx sponsor from the gas pool using `walletAddress` and `amount: "...n"`.
+- `sponsor` requires a reusable terms signature (`walletAddress`, `bytes`,
+  `signature`) and optionally accepts `txKind` and `gasBudget` (MIST). It does
+  not accept an `amount`; the service sponsors the supplied transaction kind.
 - Most gas-pool tx builders return `TxKindResponse`; `create` and `withdraw` may additionally return PTB argument references.
 
 Minimal request examples:
@@ -114,6 +118,25 @@ POST /api/gas-pool/transactions/withdraw
 }
 // -> { txKind, withdrawnCoinArg? }
 ```
+
+```typescript
+POST /api/gas-pool/transactions/sponsor
+{
+  "walletAddress": "0x...",
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>",
+  "txKind": "<optional base64 TransactionKind>",
+  "gasBudget": 50000000
+}
+// -> { transaction, sponsorSignature, digest }
+```
+
+The client signs the returned `transaction` as sender. See
+`authentication.md`; the old `SPONSOR_GAS` action/date payload is no longer
+accepted by the current service. Shared gas-pool failures are mapped to
+`2030` (insufficient funds), `2031` (temporarily unavailable), `2032`
+(authorization), or `2033` (transaction not sponsorable); see
+`error-handling.md` for retry guidance.
 
 ---
 
@@ -160,6 +183,7 @@ Order-placement usage:
 ```text
 POST /api/perpetuals/rebates/rewards
 POST /api/perpetuals/rebates/create-csv-rebates
+POST /api/perpetuals/rebates/create-referral-csv-rebates
 ```
 
 Request notes:
@@ -206,10 +230,17 @@ Minimal request example:
 POST /api/referrals/link
 {
   "walletAddress": "0x...",
-  "bytes": "...",
-  "signature": "..."
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>",
+  "refCode": "ref_example"
 }
 ```
+
+`ref-code`, `linked-ref-code`, `create`, and `link` all use the same reusable
+terms signature. `create` accepts optional plain `refCode` (defaulting to
+`ref_{walletAddress}`); `link` requires plain `refCode`. The availability and
+query routes retain their own unsigned/query request shapes. Do not sign the
+referral action, code, or date.
 
 ---
 
@@ -219,7 +250,7 @@ POST /api/referrals/link
 POST /api/rewards/claimable
 POST /api/rewards/history
 POST /api/rewards/points
-POST /api/rewards/expectedRewards
+POST /api/rewards/expected-rewards
 POST /api/rewards/transactions/claim
 ```
 
@@ -234,8 +265,8 @@ POST /api/rewards/claimable
 POST /api/rewards/points
 {
   "walletAddress": "0x...",
-  "bytes": "{\"action\":\"GET_POINTS\"}",
-  "signature": "..."
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>"
 }
 ```
 
@@ -251,7 +282,7 @@ Request/response notes:
 - `claim` requires `walletAddress`; `coinTypes`, `recipientAddress`, and `txKind` are optional.
 - `history` is a signed request (`walletAddress`, `bytes`, `signature` required) supporting `cursor`, `limit`, and optional `domain` filtering. Entries carry `eventType` (`"deposit" | "withdraw" | "points"`); `coinType` may be `"points"` for point events.
 - `points` is a signed request returning `{ totalPoints }` (float), representing actual accrued points.
-- `expectedRewards` is a forward-looking estimator with no signed auth. Provide exactly one account selector: `address` or `accountId` (`"...n"`). Other fields are optional: `epoch`, maker/taker totals, calculation coefficients, and budget/rate overrides. Response: `{ epoch, total, domains }`; `tokensRaw` values are `"...n"` strings.
+- `expected-rewards` is a forward-looking estimator with no signed auth. Provide exactly one account selector: `address` or `accountId` (`"...n"`). Other fields are optional: `epoch`, maker/taker totals, calculation coefficients, and budget/rate overrides. Response: `{ epoch, total, domains }`; `tokensRaw` values are `"...n"` strings.
 
 ---
 
@@ -260,6 +291,7 @@ Request/response notes:
 ```text
 GET  /api/coins/verified
 POST /api/coins/metadata
+GET  /api/coins/{coin_type}       (deprecated shape)
 POST /api/zklogin/create
 ```
 
@@ -276,7 +308,7 @@ Response note:
 
 zkLogin note:
 
-- `/api/zklogin/create` requires `ephemeralKeyPair`, `jwt`, `maxEpoch`, and `randomness`; it returns `walletAddress`, `addressSeed`, and a `partialZkLoginSignature`.
+- `/api/zklogin/create` requires `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`; the private key never leaves the client. It returns `walletAddress`, `addressSeed`, and a `partialZkLoginSignature` and forwards downstream 400/401/502/504 statuses.
 
 Referral response note:
 
@@ -347,3 +379,4 @@ POST /api/dynamic-gas
 
 - Swagger UI: `https://aftermath.finance/docs`
 - Production OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
+- Complete local operation audit: `endpoint-inventory.md`

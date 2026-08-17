@@ -5,6 +5,11 @@
 These APIs return frontend-ready serialized transactions. They do not use the
 CCXT build-sign-submit response shape.
 
+Authenticated reads/actions use the reusable terms signature described in
+`authentication.md`: the base64-decoded `bytes` must be exactly
+`Aftermath Terms and Conditions`. Order IDs and other route data are plain
+request fields, not signed JSON.
+
 ## DCA Routes
 
 ```text
@@ -13,6 +18,18 @@ POST /api/dca/past
 POST /api/dca/cancel
 POST /api/dca/transactions/create-order
 ```
+
+Deprecated compatibility routes remain available:
+
+```text
+POST /api/dca/user/add  // { walletAddress, bytes, signature } -> boolean
+POST /api/dca/user/get  // { walletAddress } -> base64 public-key bytes or null
+```
+
+The `user/add` signature uses the legacy user-data protocol, not the reusable
+terms message. Prefer `/api/user-data/public-key` and
+`/api/user-data/save-public-key` for new public-key storage integrations; these
+DCA paths are legacy aliases.
 
 ### Read orders
 
@@ -75,12 +92,15 @@ The response is a bare JSON string containing the serialized transaction.
 ```json
 {
   "walletAddress": "0x...",
-  "bytes": "...",
-  "signature": "..."
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over the decoded terms bytes>",
+  "orderObjectIds": ["0x...", "0x..."]
 }
 ```
 
-The signed bytes identify the order to cancel.
+The response is an empty JSON object on success. The service verifies the
+wallet/terms signature, then uses the plain `orderObjectIds` to select the
+orders. Do not put the IDs inside the signed bytes.
 
 ## Spot Limit-Order Routes
 
@@ -100,7 +120,8 @@ POST /api/limit-orders/transactions/create-order
 - Response objects use camelCase fields such as `objectId`, `allocatedCoin`, `buyCoin`, `currentAmountSold`, `currentAmountBought`, `expiryTimestamp`, `integratorFee`, and `outputToInputStopLossExchangeRate`.
 - `allocatedCoin.amount`, `buyCoin.amount`, `currentAmountSold`, and `currentAmountBought` are `"...n"` strings.
 - `created` and optional `finished` are `{ timestamp, txnDigest }`.
-- `cancel` requires the same signed fields as `active` and returns a bare boolean.
+- `cancel` requires the same signed fields as `active`, plus plain
+  `orderObjectIds: string[]`, and returns a bare boolean.
 - `min-order-size-usd` accepts a bodyless POST and returns a bare USD number.
 
 ### Create a limit-order transaction
@@ -129,6 +150,11 @@ Request rules:
 - Dry-run failures use error code `2009`.
 
 The response is a bare JSON string containing the serialized transaction.
+
+Current v2.3.0 SDK warning: `Dca.closeDcaOrder` and
+`LimitOrders.cancelLimitOrder` types omit `orderObjectIds`, and their
+`*MessageToSign` helpers generate old action-specific JSON. Construct the
+current body directly until the SDK is updated.
 
 ## Errors
 

@@ -166,6 +166,25 @@ ws.onmessage = (event) => {
 
 Market candles stream over this same socket via the `marketCandles` subscription. See `native.md` for the full interval enum.
 
+For a user subscription that includes stop orders, reuse the terms-auth pair
+from `authentication.md`:
+
+```typescript
+ws.send(JSON.stringify({
+  action: "subscribe",
+  subscriptionType: {
+    user: {
+      accountId: "123n",
+      withStopOrders: { walletAddress, bytes, signature },
+    },
+  },
+}));
+```
+
+The proxy verifies that `bytes` decodes to `Aftermath Terms and Conditions`
+before forwarding the subscription. Do not generate a per-subscription
+account/action message.
+
 ---
 
 ## 6) Reconnect and Resync Rule
@@ -177,3 +196,7 @@ On WebSocket reconnect:
 3. Resume delta processing.
 
 Do not continue from stale in-memory state after disconnects.
+
+The SDK equivalent is `sdk.Perpetuals().openUpdatesWebsocketStream(...)`; its
+`subscribeMarketCandles` helper also uses this general socket, even though an
+old method comment still names the removed dedicated candle route.

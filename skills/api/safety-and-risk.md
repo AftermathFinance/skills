@@ -140,6 +140,20 @@ async function fetchMaxOrderSize(accountId: bigint, marketId: string, side: 0 | 
 
 Call this before placing large orders or increasing leverage.
 
+### Signed data and sponsored gas
+
+For current service routes that require wallet authentication, sign the exact
+reusable message `Aftermath Terms and Conditions` once per wallet connection;
+keep order IDs and filters outside the signed bytes. This applies to stop/TWAP
+reads, DCA/limit cancellation, rewards/referral actions, gas-pool sponsorship,
+and authenticated histories. See `authentication.md` for the wire format.
+
+When using gas-pool sponsorship or a perpetuals sponsor config, treat an
+optional `gasBudget` as SUI MIST and set it conservatively. If omitted, let the
+service derive the budget. Returned/reclaimed order gas is sent back to the
+account owner in the current service behavior; do not model it as permanently
+lost sponsor inventory.
+
 ### Historical Risk Telemetry
 
 Track account behavior over time using:

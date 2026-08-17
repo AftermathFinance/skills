@@ -190,3 +190,62 @@ For WebSocket disconnects:
 4. Resume incremental updates.
 
 Never continue applying deltas to unknown stale state after reconnect.
+
+## 7) SDK transport classification
+
+`aftermath-ts-sdk` v2.3.0 wraps transport failures in
+`AftermathTransportError` while preserving the legacy HTTP message. Branch on
+`error.kind`:
+
+```typescript
+import { isAftermathTransportError } from "aftermath-ts-sdk";
+
+if (isAftermathTransportError(error)) {
+  switch (error.kind) {
+    case "http":
+      // inspect error.status and error.retryAfterMs
+      break;
+    case "network":
+    case "timeout":
+      // retry only idempotent reads
+      break;
+    case "abort":
+      // caller cancellation; normally do not retry
+      break;
+    case "decode":
+      // successful HTTP response was not valid JSON
+      break;
+  }
+}
+```
+
+Do not retry a `400` signature-verification failure or blindly retry a
+transaction request after a timeout. Reconcile a possibly accepted
+transaction first. See the SDK's `transport-and-lifecycle.md` for the
+`status`, `retryAfterMs`, `code`, `cause`, and `abortSource` fields.
+
+## 8) Reusable-auth failures
+
+For terms-auth routes, a 400 means one of the wallet address, base64 bytes,
+exact message text, or signature is invalid. The accepted decoded message is
+only `Aftermath Terms and Conditions`. Rebuild that auth object rather than
+retrying the old action/date message. Route-specific IDs and filters are not
+part of the signed bytes.
+
+## 9) Gas-pool error codes
+
+Gas-pool calls map the shared service's structured failures into stable
+Aftermath error codes. Read `X-Error-Code` (and the JSON error string/body) when
+deciding whether to retry:
+
+| Code | Meaning | Typical action |
+|---:|---|---|
+| `2030` | No gas pool or insufficient pool balance | Fund a pool or choose another sponsor |
+| `2031` | Pool has no room, is not ready, or does not approve the sponsor | Retry after a short backoff |
+| `2032` | Gas-pool authorization failed | Reconnect/check the wallet and authorization |
+| `2033` | Transaction kind/command/reference cannot be sponsored | Fix the transaction; do not retry unchanged |
+| `2018` | Shared gas-pool service or transport failure | Treat as transient only when the underlying cause is transient |
+
+Invalid reusable terms authentication is `2034` and is not retryable without
+rebuilding the signature. These codes are especially useful for
+`/api/gas-pool/transactions/sponsor` and embedded perpetuals sponsorship.
