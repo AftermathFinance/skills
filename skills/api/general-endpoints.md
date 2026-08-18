@@ -1,7 +1,7 @@
 # General Aftermath API Endpoints
 
 These current service families are outside the core CCXT/native-perpetuals
-references. Paths below are from `service-af-fe` commit `a0ab6c1`; preserve
+references. Paths below are from `service-af-fe` commit `7b39fc7`; preserve
 the exact kebab-case spelling.
 
 ## Network config and auth
@@ -151,7 +151,7 @@ type FarmSummary = {
 ```
 
 The service caches these computed summaries for roughly 30 seconds. The SDK
-v2.3.0 maps these routes to `getPoolSummaries` and `getFarmSummaries`, both
+v3.0.0 maps these routes to `getPoolSummaries` and `getFarmSummaries`, both
 with final-position abort signals.
 
 ## Stable Kitchen

@@ -1,10 +1,10 @@
 # Current API Operation Inventory
 
-Generated from the `utoipa::path` declarations in `service-af-fe` `a0ab6c1`.
+Generated from the `utoipa::path` declarations in `service-af-fe` `7b39fc7`.
 
-The source contains **257 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **254 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
+The source contains **258 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **255 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
 
-The extractor intentionally ignores source lines beginning with `//` so commented-out historical handlers are not treated as live API operations.
+The extractor intentionally ignores source lines beginning with `//` so commented-out historical handlers are not treated as live API operations. This is a source/OpenAPI declaration index, not a deployment/runtime availability check.
 
 ## addresses
 
@@ -225,6 +225,7 @@ The extractor intentionally ignores source lines beginning with `//` so commente
 - `POST /api/perpetuals/vault/transactions/update-withdraw-request-slippage`
 - `POST /api/perpetuals/vault/twap-order-datas`
 - `POST /api/perpetuals/vaults`
+- `POST /api/perpetuals/vaults/config`
 - `GET /api/perpetuals/vaults/{vault_id}/tvl`
 - `POST /api/perpetuals/vaults/lp-coin-prices`
 - `POST /api/perpetuals/vaults/owned-lp-coins`

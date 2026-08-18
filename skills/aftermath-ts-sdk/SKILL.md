@@ -5,9 +5,9 @@ description: Integrate and troubleshoot the current Aftermath TypeScript SDK for
 
 # Aftermath TypeScript SDK
 
-Use the repository snapshot documented here: `aftermath-ts-sdk` tag `v2.3.0` at
-commit `ae289995` (2026-08-14). The companion API snapshot is
-`service-af-fe` commit `a0ab6c1` (2026-08-16). Read the focused reference files
+Use the repository snapshot documented here: `aftermath-ts-sdk` tag `v3.0.0` at
+commit `6a4ba522` (2026-08-18). The companion API snapshot is
+`service-af-fe` commit `7b39fc7` (2026-08-18). Read the focused reference files
 only for the package or compatibility surface being changed.
 
 ## Start with the supported entry point
@@ -15,7 +15,7 @@ only for the package or compatibility surface being changed.
 Install and import the package by its actual name:
 
 ```bash
-npm i aftermath-ts-sdk
+npm i aftermath-ts-sdk@3.0.0
 ```
 
 ```typescript
@@ -47,7 +47,7 @@ singleton properties. The current configured accessors are `Pools`, `Staking`,
 `SuiFrens`, `Faucet`, `Router`, `NftAmm`, `ReferralVault` (deprecated),
 `Referrals`, `GasPools`, `Perpetuals`, `Rewards`, `Farms`, `Dca`, `Multisig`,
 `LimitOrders`, `UserData`, `Sui`, `Prices`, `Wallet(address)`,
-`Coin(coinType?)`, `DynamicGas`, and `Auth`. At v2.3.0, not every accessor
+`Coin(coinType?)`, `DynamicGas`, and `Auth`. At v3.0.0, not every accessor
 class is re-exported from the package barrel (`Dca`, `LimitOrders`,
 `Multisig`, `Referrals`, `Rewards`, `UserData`, and `DynamicGas` are the
 important exceptions); use the configured accessors instead of assuming a
@@ -63,15 +63,18 @@ direct named import exists.
   `Transaction.from` when a response includes `sponsorSignature`; set the
   sender when the request has `walletAddress`.
 - Pass an `AbortSignal` as the final positional argument where supported.
-  `Aftermath.create(options, signal)` supports bootstrap cancellation; v2.3.0
+  `Aftermath.create(options, signal)` supports bootstrap cancellation; v3.0.0
   adds it to pool/farm/price/coin metadata/decimal reads and summary methods.
+- `Perpetuals().getVaultsConfig(signal?)` reads the live vault protocol limits
+  from `POST /api/perpetuals/vaults/config`. Integer fields are returned as
+  `bigint` values; do not use removed hardcoded `PerpetualsVault.constants`.
 - Catch `AftermathTransportError` and branch on `kind` (`http`, `network`,
   `abort`, `timeout`, or `decode`) instead of matching only error text. HTTP
   messages retain the legacy `HTTP <status> <statusText>: <body>` format.
 - Check [backend-alignment.md](references/backend-alignment.md) before using
   signed DCA, limit-order, referral, gas-sponsor, or deprecated integrator
   vault helpers. The service has moved to reusable terms authentication while
-  some v2.3.0 SDK builders still emit action-specific messages.
+  deprecated v3.0.0 action-message builders remain in some package surfaces.
 - Use `AftermathApi` only when direct protocol API helpers are needed. It is
   gRPC-first; the optional JSON-RPC client is required by the three legacy
   helpers named by `requireJsonRpcClient`. Prefer high-level Aftermath API

@@ -6,7 +6,7 @@ This is the preferred and canonical API surface for integrations because it expo
 
 Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
 Production spec last hashed: `2026-07-28`
-Local service snapshot: `service-af-fe` `a0ab6c1` (2026-08-16)
+Local service snapshot: `service-af-fe` `7b39fc7` (2026-08-18)
 
 For reusable wallet signatures, read `authentication.md`. For the complete
 route audit, read `endpoint-inventory.md`.
@@ -115,6 +115,7 @@ sponsored; do not treat that gas as permanently belonging to the sponsor.
 ### Vaults
 
 ```text
+POST /api/perpetuals/vaults/config
 POST /api/perpetuals/vaults
 POST /api/perpetuals/vaults/lp-coin-prices
 POST /api/perpetuals/vaults/owned-lp-coins
@@ -353,6 +354,44 @@ Content-Type: application/json
   "accountId": "123n"
 }
 ```
+
+### Dynamic vault protocol configuration
+
+Use this route for the vault protocol’s live limits. It is distinct from
+`GET /api/perpetuals/config`, which returns network-specific AFLP/official-vault
+and default-collateral configuration.
+
+`POST /api/perpetuals/vaults/config`
+Content-Type: application/json
+
+{}
+
+The request is unauthenticated and must contain the empty JSON object. The
+response is a bare object; integer-like values are serialized as bigint-style
+strings and decimal limits are JSON numbers:
+
+```typescript
+type PerpetualsVaultsConfig = {
+  id: string;
+  version: string; // e.g. "123n"
+  collateralPriceFeedStorageToleranceMs: string;
+  maxLockPeriodMs: string;
+  maxForceWithdrawDelayMs: string;
+  maxPerformanceFeePercentage: number;
+  minOwnerLockUsd: number;
+  maxOwnerLockUsd: number;
+  minDepositUsd: number;
+  maxMarketsInVault: string;
+  maxPendingOrdersPerPosition: string;
+  forceWithdrawPauseMs: string;
+  maxAssistantsPerVault: string;
+};
+```
+
+Treat these values as dynamic deployment configuration. Do not restore SDK
+constants or hardcode values such as lock periods, minimum deposits, market
+counts, or pending-order limits. In `aftermath-ts-sdk` v3.0.0, use
+`sdk.Perpetuals().getVaultsConfig(abortSignal?)`.
 
 ### Network configuration
 

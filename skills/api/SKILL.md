@@ -1,9 +1,9 @@
 ---
 name: aftermath-perpetuals
-description: Integrate and troubleshoot the current Aftermath public API, including native perpetuals, CCXT, DCA and limit orders, pools, farms, staking, prices, auxiliary utilities, wallet/auth endpoints, WebSockets, operational safety, and the aftermath-ts-sdk compatibility boundary. Use for any service-af-fe endpoint or Aftermath TypeScript SDK integration task.
+description: Integrate and troubleshoot the current Aftermath HTTP/OpenAPI and WebSocket API, including native perpetuals, CCXT, DCA and limit orders, pools, farms, staking, prices, auxiliary utilities, wallet/auth endpoints, and operational safety. Use for raw service-af-fe requests, endpoint schemas, API failures, and API-side compatibility checks; use the dedicated aftermath-ts-sdk skill for typed SDK integration.
 ---
 
-# Aftermath API and SDK Integration
+# Aftermath API Integration
 
 Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
 Last validated: `2026-07-28`
@@ -12,8 +12,8 @@ Canonical docs UI: `https://aftermath.finance/docs`
 
 Local source snapshots used for the current references:
 
-- API service: `service-af-fe` `a0ab6c1` (2026-08-16), 257 OpenAPI operations.
-- TypeScript SDK: `aftermath-ts-sdk` `ae289995`, `v2.3.0` (2026-08-14).
+- API service: `service-af-fe` `7b39fc7` (2026-08-18), 258 OpenAPI operations.
+- TypeScript SDK: `aftermath-ts-sdk` tag `v3.0.0` at `6a4ba522` (2026-08-18).
 
 ## Fast Routing
 
@@ -89,6 +89,9 @@ Post-v3 service updates:
 - Unified wallet authentication now accepts only the reusable terms message
   `Aftermath Terms and Conditions`; DCA/limit cancellation IDs are plain
   `orderObjectIds` and gas sponsorship accepts optional `gasBudget`.
+- `POST /api/perpetuals/vaults/config` returns the dynamic vault protocol
+  limits; send an empty JSON object `{}`. Do not hardcode lock, deposit, market,
+  or pending-order limits; see `native.md` and the SDK's `getVaultsConfig()`.
 - `GET /api/perpetuals/config` serves network-specific AFLP/official-vault and
   default-collateral configuration.
 - `POST /api/pools/summary` and `POST /api/farms/summary` batch and cache the
@@ -128,6 +131,9 @@ Post-v3 service updates:
 
 Use the local helper script to check the production OpenAPI after the 24h window.
 
+- Use `--force` to bypass the 24-hour window; use `--yes` to query without an
+  interactive prompt in CI or another non-interactive environment. EOF on a
+  required prompt is an error rather than a successful no-op.
 - Script: `skills/api/scripts/check_api_changes.py`
 - Behavior: if less than 24h since `Last validated`, it exits without querying.
 - If 24h+ elapsed, it prompts before querying: `Query ... for API changes now? [y/N]`.
@@ -141,14 +147,18 @@ python3 skills/api/scripts/check_api_changes.py
 
 ## Local Source Coverage Check
 
-When auditing a local `service-af-fe` checkout, compare its live Rust route
-declarations with the committed operation inventory:
+When auditing a local `service-af-fe` checkout, compare its source/OpenAPI
+route declarations with the committed operation inventory:
 
 ```bash
 python3 skills/api/scripts/check_local_coverage.py \
   --service-root /path/to/service-af-fe
 ```
 
-The checker ignores commented-out `utoipa::path` handlers and exits nonzero if
-an operation is missing or extra. It does not edit the inventory; regenerate
-that file only after reviewing the source diff and response-shape changes.
+The checker ignores commented-out `utoipa::path` handlers, supports inline
+paths and same-file `&str` path constants, and exits nonzero if an operation is
+missing or extra. This is declaration coverage only: it does not verify Actix
+registration, reverse-proxy routing, deployed runtime availability, or response
+behavior. Use deployment-aware smoke tests for those checks. It does not edit
+the inventory; regenerate that file only after reviewing the source diff and
+response-shape changes.

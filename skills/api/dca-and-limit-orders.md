@@ -151,10 +151,10 @@ Request rules:
 
 The response is a bare JSON string containing the serialized transaction.
 
-Current v2.3.0 SDK warning: `Dca.closeDcaOrder` and
-`LimitOrders.cancelLimitOrder` types omit `orderObjectIds`, and their
-`*MessageToSign` helpers generate old action-specific JSON. Construct the
-current body directly until the SDK is updated.
+The v3.0.0 SDK types carry the current plain `orderObjectIds` fields for
+cancellation. Use `UserData.createTermsAndConditionsMessage()` for the reusable
+terms bytes; the deprecated `*MessageToSign` action builders are not the service
+signature payload and should not be used for current raw requests.
 
 ## Errors
 

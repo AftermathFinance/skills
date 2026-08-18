@@ -21,7 +21,7 @@ Think of them as specialized instruction sets — when you point your AI agent a
 | Skill | Description | Status |
 |-------|-------------|--------|
 | [API](./skills/api/SKILL.md) | Current Aftermath API operations: perpetuals, CCXT, DCA, staking, pools, prices, auxiliary utilities, WebSockets, and operational safety | Stable |
-| [TypeScript SDK](./skills/aftermath-ts-sdk/SKILL.md) | `aftermath-ts-sdk` v2.3.0 providers, transaction builders, transport, gRPC, and API compatibility | Stable |
+| [TypeScript SDK](./skills/aftermath-ts-sdk/SKILL.md) | `aftermath-ts-sdk` v3.0.0 providers, transaction builders, transport, gRPC, and API compatibility | Stable |
 | [Gas](./skills/gas/SKILL.md) | Sui Move gas analysis and optimization | Stable |
 
 > More skills will be added as new integration surfaces arise. See [Roadmap](#roadmap) below.

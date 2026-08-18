@@ -126,7 +126,7 @@ type PoolSummary = { pool: PoolObject; stats: PoolStats };
 
 The response is a bare `PoolSummary[]`. Omitting `poolIds` or passing `null`
 returns all pools. The service batches and caches the underlying pool objects
-and 24-hour statistics for roughly 30 seconds. The TypeScript SDK v2.3.0
+and 24-hour statistics for roughly 30 seconds. The TypeScript SDK v3.0.0
 exposes this as `sdk.Pools().getPoolSummaries(inputs?, abortSignal?)`.
 
 `POST /api/pools/stats` requires `{ poolIds: string[] }` and returns one

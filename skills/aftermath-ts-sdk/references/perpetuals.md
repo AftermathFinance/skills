@@ -11,6 +11,7 @@ the core market/account/vault surface. Raw request/response details live in
 
 ```text
 getAllMarkets, getMarket, getMarkets,
+getVaultsConfig,
 getAllVaults, getVault, getVaults,
 getAccount, getAccounts, getAccountObjects,
 getOwnedAccountCaps, getOwnedVaultCaps, getOwnedVaultAssistantCaps,
@@ -29,6 +30,25 @@ Notable response changes in the v3 service contract:
   `4h`, `12h`, `1d`, `3d`, `1w`, `1mo`) and millisecond timestamps.
 - TWAP data uses `details.size`, `processedAmount`, and `scheduledAmount` as
   BigInt-style values; `lastExecutionTimestampMs` is an ordinary JSON number.
+
+### Dynamic vault protocol configuration
+
+`getVaultsConfig(abortSignal?)` maps to:
+
+`POST /api/perpetuals/vaults/config`
+
+`{}`
+
+The endpoint requires the empty JSON object and returns the live
+`PerpetualsVaultsConfig`. Integer-like response fields decode to TypeScript
+`bigint` values, including `maxLockPeriodMs`, `maxMarketsInVault`, and
+`maxPendingOrdersPerPosition`; decimal limits remain numbers. The configuration
+is deployment-driven, so fetch it instead of hardcoding vault lock, deposit,
+market-count, or pending-order limits.
+
+The removed `PerpetualsVault.constants` table is not a source of current
+limits. Use `perps.getVaultsConfig(signal)` before applying client-side
+validation.
 
 ### Transaction builders
 
@@ -53,7 +73,7 @@ getBuilderCodeIntegratorConfig
 
 The current service also has one-time global registration:
 `POST /api/perpetuals/builder-codes/transactions/create-integrator-registration`
-and `POST /api/perpetuals/builder-codes/integrator-registration`. The v2.3.0
+and `POST /api/perpetuals/builder-codes/integrator-registration`. The v3.0.0
 SDK does not expose a matching high-level create-registration method; use the
 raw API or `AftermathApi` path when needed.
 

@@ -193,7 +193,7 @@ Never continue applying deltas to unknown stale state after reconnect.
 
 ## 7) SDK transport classification
 
-`aftermath-ts-sdk` v2.3.0 wraps transport failures in
+`aftermath-ts-sdk` v3.0.0 wraps transport failures in
 `AftermathTransportError` while preserving the legacy HTTP message. Branch on
 `error.kind`:
 
@@ -221,7 +221,7 @@ if (isAftermathTransportError(error)) {
 
 Do not retry a `400` signature-verification failure or blindly retry a
 transaction request after a timeout. Reconcile a possibly accepted
-transaction first. See the SDK's `transport-and-lifecycle.md` for the
+transaction first. See the SDK's [`transport-and-lifecycle.md`](../aftermath-ts-sdk/references/transport-and-lifecycle.md) for the
 `status`, `retryAfterMs`, `code`, `cause`, and `abortSource` fields.
 
 ## 8) Reusable-auth failures

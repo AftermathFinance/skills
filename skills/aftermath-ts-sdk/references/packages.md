@@ -1,6 +1,6 @@
 # SDK Package and Accessor Inventory
 
-The lists below describe the public high-level classes in `v2.3.0`. Methods
+The lists below describe the public high-level classes in `v3.0.0`. Methods
 that return transactions generally return a Sui `Transaction`; methods that
 fetch a service `txKind` object may return `{ tx, ...metadata }`.
 
@@ -59,6 +59,23 @@ getHistoricalApy
 It also exposes `Staking.calcAtomicUnstakeFee`. Validator and staking
 transaction routes are documented in `../../api/staking.md`.
 
+## Perpetuals
+
+`sdk.Perpetuals()` exposes the market, account, vault, builder-code, rebate,
+and WebSocket surface summarized in [perpetuals.md](perpetuals.md), including:
+
+```text
+getVaultsConfig, getAllMarkets, getMarkets, getAllVaults, getVaults,
+getAccount, getAccounts, getMarketCandleHistory, getPrices,
+getCreateAccountTx, getCreateVaultTx, account/vault order and preview methods,
+openUpdatesWebsocketStream
+```
+
+`getVaultsConfig(abortSignal?)` posts `{}` to
+`POST /api/perpetuals/vaults/config` and returns dynamic protocol limits.
+Integer fields decode to `bigint`; the removed hardcoded
+`PerpetualsVault.constants` are not current configuration.
+
 ## DCA and limit orders
 
 `sdk.Dca()` exposes:
@@ -80,8 +97,9 @@ cancelLimitOrder, cancelLimitOrdersMessageToSign, getMinOrderSizeUsd
 Read [backend-alignment.md](backend-alignment.md) and
 `../../api/dca-and-limit-orders.md` before calling signed methods. The
 current service requires a fixed reusable terms signature and plain
-`orderObjectIds`; v2.3.0 types/builders still describe the old
-order-specific signed JSON.
+`orderObjectIds`. v3.0.0 types carry the current cancellation IDs; use
+`UserData.createTermsAndConditionsMessage()` for the reusable terms bytes.
+Deprecated `*MessageToSign` helpers still describe old action-specific messages.
 
 ## Rewards and referrals
 
@@ -104,11 +122,10 @@ createReferralLink, setReferrer,
 createReferralLinkMessageToSign, setReferrerMessageToSign
 ```
 
-The last two message builders are stale for the current service. Use the
-fixed terms bytes and send `refCode` as a plain field; v2.3.0's
-`setReferrer` body type does not declare that required field. `createReferralLink`
-may also accept a plain custom `refCode` at a raw boundary, although the
-service supplies a default when omitted. `sdk.ReferralVault()` is deprecated
+The last two message builders are deprecated action helpers, not the current
+service signature payload. v3.0.0 sends `refCode` as a plain field; use the
+fixed terms bytes and `UserData.createTermsAndConditionsMessage()`. The service may
+default the custom code when `createReferralLink` omits it. `sdk.ReferralVault()` is deprecated
 and only exposes `getReferrer`; use `Referrals` for the current HTTP referral
 program.
 
@@ -123,7 +140,7 @@ getSponsoredTransaction, getGrantTx, getRevokeTx, getShareTx
 
 `getSponsoredTransaction` returns `{ transaction, sponsorSignature, digest }`
 and its current service body also accepts optional MIST `gasBudget`. The SDK
-v2.3.0 sponsor type still omits that field and its comments describe the old
+v3.0.0 `GasPools` still omits that field in its sponsor type and its comments describe the old
 `SPONSOR_GAS` JSON/date message; use the compatibility reference.
 
 `sdk.DynamicGas()` exposes `getUseDynamicGasForTx`, for
@@ -184,12 +201,18 @@ reusable terms signature used by service endpoints.
 ```text
 getUserPublicKey, createUserPublicKey,
 createUserAccountMessageToSign,
+createTermsAndConditionsMessage,
 createSignTermsAndConditionsMessageToSign
 ```
 
+`UserData.termsAndConditionsMessage` is the same canonical string returned by
+`createTermsAndConditionsMessage()`.
+
 The service's `save-public-key` endpoint has its own `bytes`/`signature`
-protocol. The `createSignTermsAndConditionsMessageToSign` helper currently
-returns an action object and is not the service-af-fe reusable terms payload.
+protocol. Use `createTermsAndConditionsMessage()` for the canonical reusable
+terms string/bytes for service routes. The deprecated
+`createSignTermsAndConditionsMessageToSign` helper returns an action object and
+is not the service-af-fe reusable terms payload.
 
 ## Faucet, multisig, NFT AMM, and SuiFrens
 

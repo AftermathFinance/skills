@@ -88,8 +88,9 @@ type SponsoredTransaction = {
 
 The client signs `transaction` as the sender and submits it with the sponsor
 signature. `gasBudget` is exact when supplied; otherwise the service derives a
-budget. The SDK v2.3.0 comments still describe an action/date `SPONSOR_GAS`
-message, which the current service no longer accepts.
+budget. The v3.0.0 GasPools comments still describe an action/date `SPONSOR_GAS`
+message, which the current service no longer accepts; use the canonical terms
+message helper or sign the exact reusable terms bytes directly.
 
 ## Authenticated WebSocket subscription
 

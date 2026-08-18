@@ -1,4 +1,4 @@
 interface:
   display_name: "Aftermath TypeScript SDK"
-  short_description: "Use the current Aftermath TypeScript SDK v2.3.0 safely"
+  short_description: "Use the current Aftermath TypeScript SDK v3.0.0 safely"
   default_prompt: "Use the Aftermath TypeScript SDK skill to integrate current SDK providers and reconcile SDK/API compatibility."

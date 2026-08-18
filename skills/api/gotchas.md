@@ -128,7 +128,8 @@ When sender and gas owner are different, collect both signatures over the same `
 
 ## 15) Migrating From the Pre-v3 API
 
-If your integration predates skill v3.0.0, these renames and removals will break requests that still use the old shapes:
+If your integration predates the v3.0.0 service surface, these renames and
+removals will break requests that still use the old shapes:
 
 - Candle intervals: `intervalMs` / `interval_ms` (milliseconds) are gone. Native `candle-history` takes `resolution` and CCXT OHLCV takes `timeframe`. See `native.md` for the full enum.
 - Candles WebSocket: `GET /api/perpetuals/ws/market-candles/{market_id}/{interval_ms}` no longer exists. Subscribe with `marketCandles` on `/api/perpetuals/ws/updates`.
@@ -195,7 +196,7 @@ route's downstream 400/401/502/504 status semantics.
 
 ## 24) SDK Route Names Are Not Proof of Service Support
 
-The v2.3.0 SDK still contains removed integrator-vault builders and legacy
+The v3.0.0 SDK still contains removed integrator-vault builders and legacy
 router/DCA/auth methods. Compare the SDK method's literal `fetchApi` path with
 the current service inventory before shipping an integration; use the raw API
 when a typed helper is behind the service.
