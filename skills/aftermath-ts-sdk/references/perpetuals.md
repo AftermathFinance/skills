@@ -54,13 +54,16 @@ validation.
 
 ```text
 getTransferCapTx, getCreateAccountTx, getGrantAgentWalletTx,
+getGrantVaultAgentWalletTx, getRevokeVaultAgentWalletTx,
 getShareAccountTx, getCreateVaultCapTx, getCreateVaultTx
 ```
 
-Agent-wallet transactions are account-admin operations. The agent can trade
-and manage supported orders but cannot withdraw collateral or grant/revoke
-other agent wallets. Use the transaction return value as a normal Sui
-`Transaction` and sign/execute it with the appropriate wallet.
+Account agent-wallet transactions are account-admin operations. The agent can
+trade and manage supported orders but cannot withdraw collateral or grant/revoke
+other agent wallets. The vault variants are owner transactions: submit them
+from the wallet holding the vault's `ADMIN` capability. Use each transaction
+return value as a normal Sui `Transaction` and sign/execute it with the
+appropriate wallet.
 
 ### Rebates and builder codes
 
@@ -73,7 +76,7 @@ getBuilderCodeIntegratorConfig
 
 The current service also has one-time global registration:
 `POST /api/perpetuals/builder-codes/transactions/create-integrator-registration`
-and `POST /api/perpetuals/builder-codes/integrator-registration`. The v3.0.0
+and `POST /api/perpetuals/builder-codes/integrator-registration`. The v3.1.0
 SDK does not expose a matching high-level create-registration method; use the
 raw API or `AftermathApi` path when needed.
 
@@ -190,6 +193,7 @@ BigInt-sized `maxOrderSize`.
 ### Transactions
 
 ```text
+getGrantAgentWalletTx, getRevokeAgentWalletTx,
 getProcessForceWithdrawRequestTx,
 getPauseVaultForForceWithdrawRequestTx,
 getUpdateWithdrawRequestSlippageTx,
@@ -199,6 +203,13 @@ getOwnerWithdrawPerformanceFeesTx, getOwnerWithdrawCollateralTx,
 getOwnerWithdrawLockedLiquidityTx,
 getCreateWithdrawRequestTx, getCancelWithdrawRequestTx, getDepositTx
 ```
+
+`getGrantAgentWalletTx({ recipientAddress, sponsor?, tx? })` builds the
+`POST /api/perpetuals/vault/transactions/owner/grant-agent-wallet` request;
+`getRevokeAgentWalletTx({ accountCapId, sponsor?, tx? })` builds the matching
+`revoke-agent-wallet` request. Both use this vault's object ID automatically.
+The recipient receives an assistant capability for supported vault trading
+actions, but cannot withdraw collateral or manage other assistant capabilities.
 
 ### Queries and previews
 

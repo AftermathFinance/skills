@@ -12,8 +12,8 @@ Canonical docs UI: `https://aftermath.finance/docs`
 
 Local source snapshots used for the current references:
 
-- API service: `service-af-fe` `7b39fc7` (2026-08-18), 258 OpenAPI operations.
-- TypeScript SDK: `aftermath-ts-sdk` tag `v3.0.0` at `6a4ba522` (2026-08-18).
+- API service: `service-af-fe` `d5cb82c` (2026-08-19), 260 OpenAPI operations.
+- TypeScript SDK: `aftermath-ts-sdk` `v3.1.0` at `9a1b41db` (2026-08-19).
 
 ## Fast Routing
 
@@ -92,6 +92,9 @@ Post-v3 service updates:
 - `POST /api/perpetuals/vaults/config` returns the dynamic vault protocol
   limits; send an empty JSON object `{}`. Do not hardcode lock, deposit, market,
   or pending-order limits; see `native.md` and the SDK's `getVaultsConfig()`.
+- Vault owner transactions can grant or revoke assistant capabilities through
+  `/api/perpetuals/vault/transactions/owner/grant-agent-wallet` and
+  `/api/perpetuals/vault/transactions/owner/revoke-agent-wallet`.
 - `GET /api/perpetuals/config` serves network-specific AFLP/official-vault and
   default-collateral configuration.
 - `POST /api/pools/summary` and `POST /api/farms/summary` batch and cache the
@@ -104,8 +107,10 @@ Post-v3 service updates:
   `/api/rewards/expected-rewards`; do not resurrect camelCase variants.
 - Gas-pool failures now map to stable codes `2030`–`2033` (with `2018` as the
   shared-service fallback); reusable-signature failures are `2034`.
-- Reclaimed order gas is transferred to the account or vault owner after
-  perpetuals order operations, including sponsored flows.
+- For perpetuals transactions with a named `sponsor.walletAddress`, scheduled
+  execution gas is withdrawn from that gas pool and returned order gas is
+  deposited back into it. With no named sponsor, returned gas goes to the
+  account or vault owner.
 
 ## Progressive Disclosure
 

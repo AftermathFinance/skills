@@ -150,9 +150,11 @@ and authenticated histories. See `authentication.md` for the wire format.
 
 When using gas-pool sponsorship or a perpetuals sponsor config, treat an
 optional `gasBudget` as SUI MIST and set it conservatively. If omitted, let the
-service derive the budget. Returned/reclaimed order gas is sent back to the
-account or vault owner in the current service behavior; do not model it as permanently
-lost sponsor inventory.
+service derive the budget. For a non-empty `sponsor.walletAddress`, scheduled
+execution gas is drawn from that gas pool and returned/reclaimed order gas is
+deposited back into it. If sponsorship is absent or the wallet address is empty,
+returned gas goes to the account or vault owner; do not model named sponsor gas
+as permanently lost inventory.
 
 ### Historical Risk Telemetry
 

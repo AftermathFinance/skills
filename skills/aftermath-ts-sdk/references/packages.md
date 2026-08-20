@@ -1,6 +1,6 @@
 # SDK Package and Accessor Inventory
 
-The lists below describe the public high-level classes in `v3.0.0`. Methods
+The lists below describe the public high-level classes in `v3.1.0`. Methods
 that return transactions generally return a Sui `Transaction`; methods that
 fetch a service `txKind` object may return `{ tx, ...metadata }`.
 
@@ -67,7 +67,8 @@ and WebSocket surface summarized in [perpetuals.md](perpetuals.md), including:
 ```text
 getVaultsConfig, getAllMarkets, getMarkets, getAllVaults, getVaults,
 getAccount, getAccounts, getMarketCandleHistory, getPrices,
-getCreateAccountTx, getCreateVaultTx, account/vault order and preview methods,
+getCreateAccountTx, getCreateVaultTx,
+getGrantVaultAgentWalletTx, getRevokeVaultAgentWalletTx, account/vault order and preview methods,
 openUpdatesWebsocketStream
 ```
 
@@ -97,7 +98,7 @@ cancelLimitOrder, cancelLimitOrdersMessageToSign, getMinOrderSizeUsd
 Read [backend-alignment.md](backend-alignment.md) and
 `../../api/dca-and-limit-orders.md` before calling signed methods. The
 current service requires a fixed reusable terms signature and plain
-`orderObjectIds`. v3.0.0 types carry the current cancellation IDs; use
+`orderObjectIds`. v3.1.0 types carry the current cancellation IDs; use
 `UserData.createTermsAndConditionsMessage()` for the reusable terms bytes.
 Deprecated `*MessageToSign` helpers still describe old action-specific messages.
 
@@ -123,7 +124,7 @@ createReferralLinkMessageToSign, setReferrerMessageToSign
 ```
 
 The last two message builders are deprecated action helpers, not the current
-service signature payload. v3.0.0 sends `refCode` as a plain field; use the
+service signature payload. v3.1.0 sends `refCode` as a plain field; use the
 fixed terms bytes and `UserData.createTermsAndConditionsMessage()`. The service may
 default the custom code when `createReferralLink` omits it. `sdk.ReferralVault()` is deprecated
 and only exposes `getReferrer`; use `Referrals` for the current HTTP referral
@@ -140,8 +141,9 @@ getSponsoredTransaction, getGrantTx, getRevokeTx, getShareTx
 
 `getSponsoredTransaction` returns `{ transaction, sponsorSignature, digest }`
 and its current service body also accepts optional MIST `gasBudget`. The SDK
-v3.0.0 `GasPools` still omits that field in its sponsor type and its comments describe the old
-`SPONSOR_GAS` JSON/date message; use the compatibility reference.
+The SDK v3.1.0 `GasPools` still omits that field in its sponsor type and
+its comments describe the old `SPONSOR_GAS` JSON/date message; use the
+compatibility reference.
 
 `sdk.DynamicGas()` exposes `getUseDynamicGasForTx`, for
 `POST /api/dynamic-gas` non-SUI gas sponsorship.

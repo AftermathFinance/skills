@@ -3,9 +3,9 @@
 Compare these two local snapshots before assuming a typed SDK method is a
 working service call:
 
-- SDK: `aftermath-ts-sdk` tag `v3.0.0` at `6a4ba522`.
-- API service: `service-af-fe` `7b39fc7`.
-- Service surface: 258 OpenAPI operations; `/api/pools` intentionally has both
+- SDK: `aftermath-ts-sdk` `v3.1.0` at `9a1b41db`.
+- API service: `service-af-fe` `d5cb82c`.
+- Service surface: 260 OpenAPI operations; `/api/pools` intentionally has both
   GET (deprecated) and POST (current).
 
 ## Current service changes that affect SDK callers
@@ -31,7 +31,7 @@ WebSocket stop-order subscriptions. `UserData.save-public-key` and the auth
 access-token endpoints retain their own message protocols; do not apply the
 terms message to them.
 
-The v3.0.0 SDK still exposes deprecated action-message builders such as
+The v3.1.0 SDK still exposes deprecated action-message builders such as
 `Dca.closeDcaOrdersMessageToSign`, `LimitOrders.cancelLimitOrdersMessageToSign`,
 `Referrals.createReferralLinkMessageToSign`, `Referrals.setReferrerMessageToSign`,
 and `UserData.createSignTermsAndConditionsMessageToSign`; gas-pool comments also
@@ -50,19 +50,28 @@ For DCA and limit-order cancellation, send the IDs as plain fields:
 }
 ```
 
+For perpetuals transaction builders with a non-empty `sponsor.walletAddress`,
+returned order gas is deposited back into that sponsor's gas pool. With no
+named sponsor (absent or empty wallet), returned gas goes to the account or
+vault owner. Scheduled stop/TWAP execution gas is drawn from the sponsor pool
+as a deferred coin input, so do not assume sender/owner coin objects fund or
+receive it.
+
 ### Current API additions and SDK status
 
 | Service route/family | SDK status |
 |---|---|
 | `GET /api/addresses` | `Aftermath.getAddresses()` uses it during bootstrap. |
-| `GET /api/perpetuals/config` | No high-level SDK accessor in v3.0.0; call the API directly when network defaults/official vault IDs are needed. |
+| `GET /api/perpetuals/config` | No high-level SDK accessor in v3.1.0; call the API directly when network defaults/official vault IDs are needed. |
 | `POST /api/perpetuals/vaults/config` | `Perpetuals.getVaultsConfig(abortSignal?)`; sends `{}` and returns dynamic `PerpetualsVaultsConfig` with bigint integer fields. |
+| `POST /api/perpetuals/vault/transactions/owner/grant-agent-wallet` | `Perpetuals.getGrantVaultAgentWalletTx({ vaultId, recipientAddress, sponsor?, tx? })` or `PerpetualsVault.getGrantAgentWalletTx({ recipientAddress, sponsor?, tx? })`; submit from the vault owner's `ADMIN` capability. |
+| `POST /api/perpetuals/vault/transactions/owner/revoke-agent-wallet` | `Perpetuals.getRevokeVaultAgentWalletTx({ vaultId, accountCapId, sponsor?, tx? })` or `PerpetualsVault.getRevokeAgentWalletTx({ accountCapId, sponsor?, tx? })`; revoke the assistant capability from the vault owner. |
 | `POST /api/pools/summary` | `Pools.getPoolSummaries(inputs?, signal?)`; response entries are `{ pool, stats }`. |
 | `POST /api/farms/summary` | `Farms.getFarmSummaries(inputs?, signal?)`; response entries are `{ farmId, tvl, rewardsTvl }`. |
 | `POST /api/rewards/expected-rewards` | `Rewards.getExpectedRewards` was fixed in 2.2.1 to use the kebab-case path. |
 | `POST /api/perpetuals/rebates/create-referral-csv-rebates` | `Perpetuals.getReferralCsvRebates` is present. |
 | `/api/ccxt/build/*` address-balance options | Raw API supports `metadata.gasFromAddressBalance`, deposit `fromAddressBalance`, and withdraw `toAddressBalance`; verify SDK types before relying on them. |
-| Gas-pool/perps `gasBudget` | Current service accepts optional MIST `gasBudget`; v3.0.0 `ApiGasPoolSponsorBody` and `PerpetualsSponsorConfig` types still do not expose it. Extend the raw request type when using an exact budget. |
+| Gas-pool/perps `gasBudget` | Current service accepts optional MIST `gasBudget`; v3.1.0 `ApiGasPoolSponsorBody` and `PerpetualsSponsorConfig` types still do not expose it. Extend the raw request type when using an exact budget. |
 | `POST /api/zklogin/create` | Current service is a plain TS-helper proxy: use `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`. Do not send an ephemeral private keypair. |
 
 ## Known stale SDK calls
@@ -100,7 +109,7 @@ These methods exist in the SDK source but do not correspond to current
 - Perpetuals SDK order, scale-order, TWAP, vault, and general-WebSocket paths
   use the current kebab-case route names. Still apply the terms-auth caveat to
   stop-order/TWAP reads and optional authenticated histories.
-- `Aftermath.create` and the v3.0.0 transport changes are additive and belong
+- `Aftermath.create` and the v3.1.0 transport changes are additive and belong
   to the SDK; they do not change raw API wire formats.
 - `Perpetuals.getVaultsConfig(abortSignal?)` posts an empty JSON object to
   `/api/perpetuals/vaults/config` and returns deployment-driven limits; integer

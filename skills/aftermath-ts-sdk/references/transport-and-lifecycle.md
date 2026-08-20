@@ -27,7 +27,7 @@ const sdk = await Aftermath.create(
 both `SuiGrpcClient.baseUrl` and `SuiJsonRpcClient.url`. Supplying `addresses`
 or `api` avoids address discovery.
 
-Canonical hosts in v3.0.0:
+Canonical hosts in v3.1.0:
 
 | Network | API | Sui fullnode |
 |---|---|---|
@@ -65,7 +65,7 @@ Transaction helpers behave as follows:
 
 ## Abort and transport errors
 
-The v3.0.0 `AftermathTransportError` is exported from the package root:
+The v3.1.0 `AftermathTransportError` is exported from the package root:
 
 ```typescript
 import {
