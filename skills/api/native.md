@@ -6,7 +6,7 @@ This is the preferred and canonical API surface for integrations because it expo
 
 Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
 Production spec last hashed: `2026-07-28`
-Local service snapshot: `service-af-fe` `7b39fc7` (2026-08-18)
+Local service snapshot: `service-af-fe` `d5cb82c` (2026-08-19)
 
 For reusable wallet signatures, read `authentication.md`. For the complete
 route audit, read `endpoint-inventory.md`.
@@ -108,9 +108,11 @@ type SponsorConfig = {
 The reusable signed bytes must decode exactly to `Aftermath Terms and
 Conditions`; transaction inputs, account IDs, and order data are not signed.
 See `authentication.md` for the common signature and gas-pool error codes.
-When an order operation returns reclaimable gas coins, the service transfers
-them to the account or vault owner, including when the transaction was
-sponsored; do not treat that gas as permanently belonging to the sponsor.
+For perpetuals transactions with a non-empty `sponsor.walletAddress`, scheduled
+execution gas is drawn from that sponsor's gas pool and returned order gas is
+deposited back into it. If sponsorship is absent or the wallet address is
+empty, returned gas goes to the account or vault owner. Do not model a named
+sponsor's reclaimed gas as owner inventory.
 
 ### Vaults
 
@@ -173,7 +175,9 @@ POST /api/perpetuals/vault/transactions/cancel-twap-orders
 POST /api/perpetuals/vault/transactions/pause-vault-for-force-withdraw-request
 POST /api/perpetuals/vault/transactions/process-force-withdraw-request
 POST /api/perpetuals/vault/transactions/update-withdraw-request-slippage
+POST /api/perpetuals/vault/transactions/owner/grant-agent-wallet
 POST /api/perpetuals/vault/transactions/owner/process-withdraw-requests
+POST /api/perpetuals/vault/transactions/owner/revoke-agent-wallet
 POST /api/perpetuals/vault/transactions/owner/update-force-withdraw-delay
 POST /api/perpetuals/vault/transactions/owner/update-lock-period
 POST /api/perpetuals/vault/transactions/owner/update-performance-fee
@@ -390,8 +394,27 @@ type PerpetualsVaultsConfig = {
 
 Treat these values as dynamic deployment configuration. Do not restore SDK
 constants or hardcode values such as lock periods, minimum deposits, market
-counts, or pending-order limits. In `aftermath-ts-sdk` v3.0.0, use
+counts, or pending-order limits. In `aftermath-ts-sdk` v3.1.0, use
 `sdk.Perpetuals().getVaultsConfig(abortSignal?)`.
+
+### Vault assistant capabilities
+
+These owner-only routes build, but do not broadcast, a vault transaction:
+
+```text
+POST /api/perpetuals/vault/transactions/owner/grant-agent-wallet
+POST /api/perpetuals/vault/transactions/owner/revoke-agent-wallet
+```
+
+`grant-agent-wallet` requires `vaultId` and `recipientAddress`; `revoke-agent-wallet`
+requires `vaultId` and `accountCapId`. Both accept optional base64 `txKind` and
+optional `sponsor` fields. The response is `{ txKind }` when unsponsored and
+adds `sponsorSignature` when a named sponsor is used.
+
+Submit the returned transaction from the vault owner's `ADMIN` capability. The
+recipient receives an assistant capability for supported vault trading actions,
+not withdrawal or assistant-management authority. Revocation remains an owner
+operation even when the vault is paused or frozen.
 
 ### Network configuration
 

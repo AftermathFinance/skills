@@ -193,7 +193,7 @@ Never continue applying deltas to unknown stale state after reconnect.
 
 ## 7) SDK transport classification
 
-`aftermath-ts-sdk` v3.0.0 wraps transport failures in
+`aftermath-ts-sdk` v3.1.0 wraps transport failures in
 `AftermathTransportError` while preserving the legacy HTTP message. Branch on
 `error.kind`:
 

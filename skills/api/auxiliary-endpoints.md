@@ -361,6 +361,7 @@ POST /api/birdeye/market
 Request/response notes:
 
 - `historical`: requires `coin` and `interval` (`"1H" | "1D" | "1W" | "1M"`); returns `{ historicalData: [{ price, timestamp, volume }] }`.
+- `historical` checks the service cache before making an upstream Birdeye request; repeated identical queries can be served without another upstream call.
 - `market`: requires `coin`; returns nullable `price`, `liquidity`, `supply`, `circulatingSupply`, `marketcap`, `circulatingMarketcap`.
 
 ---

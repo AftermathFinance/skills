@@ -196,7 +196,7 @@ route's downstream 400/401/502/504 status semantics.
 
 ## 24) SDK Route Names Are Not Proof of Service Support
 
-The v3.0.0 SDK still contains removed integrator-vault builders and legacy
+The v3.1.0 SDK still contains removed integrator-vault builders and legacy
 router/DCA/auth methods. Compare the SDK method's literal `fetchApi` path with
 the current service inventory before shipping an integration; use the raw API
 when a typed helper is behind the service.

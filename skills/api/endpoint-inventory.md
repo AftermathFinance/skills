@@ -1,8 +1,8 @@
 # Current API Operation Inventory
 
-Generated from the `utoipa::path` declarations in `service-af-fe` `7b39fc7`.
+Generated from the `utoipa::path` declarations in `service-af-fe` `d5cb82c`.
 
-The source contains **258 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **255 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
+The source contains **260 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **257 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
 
 The extractor intentionally ignores source lines beginning with `//` so commented-out historical handlers are not treated as live API operations. This is a source/OpenAPI declaration index, not a deployment/runtime availability check.
 
@@ -207,7 +207,9 @@ The extractor intentionally ignores source lines beginning with `//` so commente
 - `POST /api/perpetuals/vault/transactions/deposit`
 - `POST /api/perpetuals/vault/transactions/edit-stop-orders`
 - `POST /api/perpetuals/vault/transactions/edit-twap-orders`
+- `POST /api/perpetuals/vault/transactions/owner/grant-agent-wallet`
 - `POST /api/perpetuals/vault/transactions/owner/process-withdraw-requests`
+- `POST /api/perpetuals/vault/transactions/owner/revoke-agent-wallet`
 - `POST /api/perpetuals/vault/transactions/owner/update-force-withdraw-delay`
 - `POST /api/perpetuals/vault/transactions/owner/update-lock-period`
 - `POST /api/perpetuals/vault/transactions/owner/update-performance-fee`

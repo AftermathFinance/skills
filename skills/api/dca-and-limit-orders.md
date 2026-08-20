@@ -151,7 +151,7 @@ Request rules:
 
 The response is a bare JSON string containing the serialized transaction.
 
-The v3.0.0 SDK types carry the current plain `orderObjectIds` fields for
+The v3.1.0 SDK types carry the current plain `orderObjectIds` fields for
 cancellation. Use `UserData.createTermsAndConditionsMessage()` for the reusable
 terms bytes; the deprecated `*MessageToSign` action builders are not the service
 signature payload and should not be used for current raw requests.
