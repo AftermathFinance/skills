@@ -11,26 +11,36 @@ Use native bulk endpoints to reduce request fanout:
 ```typescript
 const BASE_URL = "https://aftermath.finance";
 
+async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init);
+  const text = await response.text();
+  let body: unknown = text;
+  try { body = text ? JSON.parse(text) : null; } catch {}
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  return body as T;
+}
+
 async function scanMarkets() {
-  const markets = await fetch(`${BASE_URL}/api/perpetuals/all-markets`, {
+  const markets = await fetchJson<{ markets: Array<{ objectId: string }> }>(`${BASE_URL}/api/perpetuals/all-markets`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       collateralCoinType: "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
     }),
-  }).then(r => r.json());
+  });
 
-  const prices = await fetch(`${BASE_URL}/api/perpetuals/markets/prices`, {
+  const marketIds = markets.markets.map((market) => market.objectId);
+  const prices = await fetchJson(`${BASE_URL}/api/perpetuals/markets/prices`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ marketIds: markets.markets.map((m: any) => m.marketId) }),
-  }).then(r => r.json());
+    body: JSON.stringify({ marketIds }),
+  });
 
-  const stats24h = await fetch(`${BASE_URL}/api/perpetuals/markets/24hr-stats`, {
+  const stats24h = await fetchJson(`${BASE_URL}/api/perpetuals/markets/24hr-stats`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ marketIds: markets.markets.map((m: any) => m.marketId) }),
-  }).then(r => r.json());
+    body: JSON.stringify({ marketIds }),
+  });
 
   return { markets, prices, stats24h };
 }
@@ -42,17 +52,17 @@ async function scanMarkets() {
 
 ```typescript
 async function scanWithCcxt() {
-  const markets = await fetch(`${BASE_URL}/api/ccxt/markets`).then(r => r.json());
+  const markets = await fetchJson<any[]>(`${BASE_URL}/api/ccxt/markets`);
 
   const rows = await Promise.all(
     markets
       .filter((m: any) => m.active)
       .map(async (m: any) => {
-        const ticker = await fetch(`${BASE_URL}/api/ccxt/ticker`, {
+        const ticker = await fetchJson<any>(`${BASE_URL}/api/ccxt/ticker`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chId: m.id }),
-        }).then(r => r.json());
+        });
 
         return {
           symbol: m.symbol,
@@ -73,18 +83,26 @@ async function scanWithCcxt() {
 ## 3) Position Health Monitor
 
 ```typescript
-async function monitorPositions(accountNumber: number) {
-  const positions = await fetch(`${BASE_URL}/api/ccxt/positions`, {
+async function monitorPositions(
+  accountNumber: number,
+  maintenanceRatioBySymbol: Record<string, number>,
+) {
+  const positions = await fetchJson<any[]>(`${BASE_URL}/api/ccxt/positions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accountNumber }),
-  }).then(r => r.json());
+  });
 
   for (const p of positions) {
-    const ratio = p.marginRatio ?? (p.notional ? p.collateral / p.notional : null);
-    if (ratio === null) continue;
+    const ratio = Number.isFinite(p.marginRatio)
+      ? p.marginRatio
+      : Number.isFinite(p.notional) && p.notional !== 0 && Number.isFinite(p.collateral)
+        ? p.collateral / p.notional
+        : null;
+    const maintenance = maintenanceRatioBySymbol[p.symbol];
+    if (ratio === null || !Number.isFinite(maintenance)) continue;
 
-    const state = ratio < 0.05 ? "LIQUIDATION" : ratio < 0.08 ? "DANGER" : "OK";
+    const state = ratio <= maintenance ? "LIQUIDATION" : ratio <= maintenance * 1.5 ? "DANGER" : "OK";
     console.log(`${p.symbol}: ratio=${(ratio * 100).toFixed(2)}% state=${state}`);
   }
 }
@@ -95,16 +113,16 @@ async function monitorPositions(accountNumber: number) {
 ## 4) Trades Backfill With Cursor Pagination
 
 ```typescript
-async function fetchAllTrades(chId: string, pageSize = 200) {
+async function fetchAllTrades(chId: string, pageSize = 50) {
   const out: any[] = [];
   let cursor: number | null = null;
 
   while (true) {
-    const page = await fetch(`${BASE_URL}/api/ccxt/trades`, {
+    const page = await fetchJson<{ trades: any[]; nextCursor?: number | null }>(`${BASE_URL}/api/ccxt/trades`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chId, limit: pageSize, cursor }),
-    }).then(r => r.json());
+    });
 
     out.push(...page.trades);
     if (page.nextCursor == null) break;
@@ -119,11 +137,11 @@ async function fetchAllTrades(chId: string, pageSize = 200) {
 
 ## 5) Stream Updates
 
-### CCXT SSE stream
+### CCXT WebSocket stream
 
 ```typescript
-const es = new EventSource(`${BASE_URL}/api/ccxt/stream/orderbook?chId=0x...`);
-es.onmessage = (event) => {
+const orderbookWs = new WebSocket("wss://aftermath.finance/api/ccxt/stream/orderbook?chId=0x...");
+orderbookWs.onmessage = (event) => {
   const delta = JSON.parse(event.data);
   // apply orderbook deltas
 };
@@ -133,26 +151,52 @@ es.onmessage = (event) => {
 
 ```typescript
 const ws = new WebSocket("wss://aftermath.finance/api/perpetuals/ws/updates");
+ws.onopen = () => {
+  // subscribe per stream; see native.md for all subscriptionType variants
+  ws.send(JSON.stringify({
+    action: "subscribe",
+    subscriptionType: { marketCandles: { marketId: "0x...", interval: "1m" } },
+  }));
+};
 ws.onmessage = (event) => {
   const update = JSON.parse(event.data);
-  // handle multi-type perpetuals updates
+  // handle multi-type perpetuals updates (market, user, orderbook, marketCandles, ...)
 };
 ```
 
-Also available: market candles stream
+Market candles stream over this same socket via the `marketCandles` subscription. See `native.md` for the full interval enum.
 
-```text
-GET /api/perpetuals/ws/market-candles/{market_id}/{interval_ms}
+For a user subscription that includes stop orders, reuse the terms-auth pair
+from `authentication.md`:
+
+```typescript
+ws.send(JSON.stringify({
+  action: "subscribe",
+  subscriptionType: {
+    user: {
+      accountId: "123n",
+      withStopOrders: { walletAddress, bytes, signature },
+    },
+  },
+}));
 ```
+
+The proxy verifies that `bytes` decodes to `Aftermath Terms and Conditions`
+before forwarding the subscription. Do not generate a per-subscription
+account/action message.
 
 ---
 
 ## 6) Reconnect and Resync Rule
 
-On stream reconnect:
+On WebSocket reconnect:
 
 1. Re-fetch snapshots (`/api/ccxt/orderbook`, positions, or native markets/orderbooks).
 2. Replace local state atomically.
 3. Resume delta processing.
 
 Do not continue from stale in-memory state after disconnects.
+
+The SDK equivalent is `sdk.Perpetuals().openUpdatesWebsocketStream(...)`; its
+`subscribeMarketCandles` helper also uses this general socket, even though an
+old method comment still names the removed dedicated candle route.

@@ -7,7 +7,16 @@
 ## Use This File When
 
 - You need endpoints not covered by `ccxt.md` or `native.md`.
-- You are implementing integrator flows, gas pool flows, referrals, rewards, or coin metadata.
+- You are implementing integrator flows, gas pool flows, referrals, rewards, rebates, router swaps, metastable vault stats, Birdeye data, dynamic gas sponsorship, zkLogin, or coin metadata.
+
+Use focused references for larger families:
+
+- DCA and spot limit orders: `dca-and-limit-orders.md`
+- Staking: `staking.md`
+- AMM pools: `pools.md`
+- Coin and LP prices: `prices.md`
+- General wallet/auth/Sui/config/stable-kitchen/DEX Screener routes: `general-endpoints.md`
+- Reusable signed-request rules: `authentication.md`
 
 ---
 
@@ -64,12 +73,14 @@ Read route:
 
 Composition notes:
 
-- `create` supports optional `initialDepositAmount`, optional `txKind`, and `deferShare` for PTB composition.
+- `create` supports optional `initialDepositAmount: "...n"`, optional `txKind`, and `deferShare` for PTB composition.
 - Deferred `create` responses can include `gasPoolArg` and `sharePolicyArg`; pass them to `share` to finalize the gas pool.
-- `deposit` supports direct SUI deposits and non-SUI swap-to-SUI deposits via `coinType`, `amount`, optional `coinArg`, and optional `slippage`.
-- `withdraw` supports `deferTransfer` and can return `withdrawnCoinArg` for downstream PTB composition.
+- `deposit` supports direct SUI deposits and non-SUI swap-to-SUI deposits via `coinType`, optional `amount: "...n"`, optional `coinArg`, and optional `slippage`.
+- `withdraw` requires `amount: "...n"`, supports `deferTransfer`, and can return `withdrawnCoinArg` for downstream PTB composition.
 - `grant` / `revoke` use `targetWalletAddress`.
-- `sponsor` rebates the tx sponsor from the gas pool using `walletAddress` and `amount`.
+- `sponsor` requires a reusable terms signature (`walletAddress`, `bytes`,
+  `signature`) and optionally accepts `txKind` and `gasBudget` (MIST). It does
+  not accept an `amount`; the service sponsors the supplied transaction kind.
 - Most gas-pool tx builders return `TxKindResponse`; `create` and `withdraw` may additionally return PTB argument references.
 
 Minimal request examples:
@@ -84,7 +95,7 @@ POST /api/gas-pool/transactions/create
 {
   "walletAddress": "0x...",
   "deferShare": true,
-  "initialDepositAmount": 1000000000
+  "initialDepositAmount": "1000000000n"
 }
 // -> { txKind, gasPoolArg?, sharePolicyArg? }
 ```
@@ -94,7 +105,7 @@ POST /api/gas-pool/transactions/deposit
 {
   "walletAddress": "0x...",
   "coinType": "0x2::sui::SUI",
-  "amount": 1000000000
+  "amount": "1000000000n"
 }
 ```
 
@@ -102,38 +113,103 @@ POST /api/gas-pool/transactions/deposit
 POST /api/gas-pool/transactions/withdraw
 {
   "walletAddress": "0x...",
-  "amount": 500000000,
+  "amount": "500000000n",
   "deferTransfer": true
 }
 // -> { txKind, withdrawnCoinArg? }
 ```
 
+```typescript
+POST /api/gas-pool/transactions/sponsor
+{
+  "walletAddress": "0x...",
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>",
+  "txKind": "<optional base64 TransactionKind>",
+  "gasBudget": 50000000
+}
+// -> { transaction, sponsorSignature, digest }
+```
+
+The client signs the returned `transaction` as sender. See
+`authentication.md`; the old `SPONSOR_GAS` action/date payload is no longer
+accepted by the current service. Shared gas-pool failures are mapped to
+`2030` (insufficient funds), `2031` (temporarily unavailable), `2032`
+(authorization), or `2033` (transaction not sponsorable); see
+`error-handling.md` for retry guidance.
+
 ---
 
 ## Builder Codes (Integrator)
 
+Integrators register once globally and are identified by a numeric `integratorId` (`u32`) everywhere — not by address.
+
 ```text
+POST /api/perpetuals/builder-codes/integrator-registration
 POST /api/perpetuals/builder-codes/integrator-config
-POST /api/perpetuals/builder-codes/integrator-vaults
+POST /api/perpetuals/builder-codes/transactions/create-integrator-registration
 POST /api/perpetuals/builder-codes/transactions/create-integrator-config
 POST /api/perpetuals/builder-codes/transactions/remove-integrator-config
-POST /api/perpetuals/builder-codes/transactions/create-integrator-vault
-POST /api/perpetuals/builder-codes/transactions/claim-integrator-vault-fees
 ```
+
+Flow and field notes:
+
+- `transactions/create-integrator-registration`: one-time global registration; the integrator identity is the transaction sender. Body is just optional `txKind` and optional `sponsor`.
+- `integrator-registration`: resolves `{ integratorId }` to `{ integratorAddress }`.
+- `integrator-config`: requires `accountId` (numeric) and `integratorId`; returns `{ exists, maxIntegratorFee }` (nullable fee).
+- `transactions/create-integrator-config`: requires `accountId`, `integratorId`, `maxIntegratorFee`; optional `txKind` and `sponsor`.
+- `transactions/remove-integrator-config`: requires `accountId` and `integratorId`; optional `txKind` and `sponsor`.
 
 Minimal request example:
 
 ```typescript
-POST /api/perpetuals/builder-codes/integrator-vaults
+POST /api/perpetuals/builder-codes/integrator-config
 {
-  "integratorAddress": "0x...",
-  "marketIds": ["0x..."]
+  "accountId": "123n",
+  "integratorId": 1
 }
+// -> { exists: true, maxIntegratorFee: 0.0005 }
 ```
 
-Response data reminder:
+Order-placement usage:
 
-- `integratorVaults[]` entries include `marketId`, `collateralCoinType`, `fees`, and `feesUsd`.
+- Order routes accept `builderCode: { integratorId, integratorFee }` — the per-order integrator fee, capped by the account's configured `maxIntegratorFee`.
+- SL/TP and stop orders accept their own `builderCode`, independent of the parent order's.
+
+---
+
+## Perpetuals Rebates
+
+```text
+POST /api/perpetuals/rebates/rewards
+POST /api/perpetuals/rebates/create-csv-rebates
+POST /api/perpetuals/rebates/create-referral-csv-rebates
+```
+
+Request notes:
+
+- Both routes accept optional `accountIds`, required `calculationVariables`, required `totalMakerRewards`, and required `totalTakerRewards`.
+- `calculationVariables` requires `qScoreCoefficient`, `uptimeCoefficient`, `mmVolumeCoefficient`, `takerVolumeCoefficient`, and `takerOiCoefficient`.
+- `rewards` returns `{ rewards, totalQScoreFinal, totalEstimatedGasCost }`.
+- `create-csv-rebates` accepts optional `aggregated` (default `false`) and returns `{ csv }`.
+
+Minimal request example:
+
+```typescript
+POST /api/perpetuals/rebates/rewards
+{
+  "accountIds": ["123n"],
+  "calculationVariables": {
+    "qScoreCoefficient": 1,
+    "uptimeCoefficient": 1,
+    "mmVolumeCoefficient": 1,
+    "takerVolumeCoefficient": 1,
+    "takerOiCoefficient": 1
+  },
+  "totalMakerRewards": 1000,
+  "totalTakerRewards": 1000
+}
+```
 
 ---
 
@@ -154,10 +230,17 @@ Minimal request example:
 POST /api/referrals/link
 {
   "walletAddress": "0x...",
-  "bytes": "...",
-  "signature": "..."
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>",
+  "refCode": "ref_example"
 }
 ```
+
+`ref-code`, `linked-ref-code`, `create`, and `link` all use the same reusable
+terms signature. `create` accepts optional plain `refCode` (defaulting to
+`ref_{walletAddress}`); `link` requires plain `refCode`. The availability and
+query routes retain their own unsigned/query request shapes. Do not sign the
+referral action, code, or date.
 
 ---
 
@@ -167,6 +250,7 @@ POST /api/referrals/link
 POST /api/rewards/claimable
 POST /api/rewards/history
 POST /api/rewards/points
+POST /api/rewards/expected-rewards
 POST /api/rewards/transactions/claim
 ```
 
@@ -181,8 +265,8 @@ POST /api/rewards/claimable
 POST /api/rewards/points
 {
   "walletAddress": "0x...",
-  "bytes": "{\"action\":\"GET_POINTS\"}",
-  "signature": "..."
+  "bytes": "<base64 of Aftermath Terms and Conditions>",
+  "signature": "<signature over decoded terms bytes>"
 }
 ```
 
@@ -196,8 +280,9 @@ POST /api/rewards/transactions/claim
 Request/response notes:
 
 - `claim` requires `walletAddress`; `coinTypes`, `recipientAddress`, and `txKind` are optional.
-- `history` supports `cursor`, `limit`, and optional `domain` filtering.
-- `points` is a signed request returning `{ points }`.
+- `history` is a signed request (`walletAddress`, `bytes`, `signature` required) supporting `cursor`, `limit`, and optional `domain` filtering. Entries carry `eventType` (`"deposit" | "withdraw" | "points"`); `coinType` may be `"points"` for point events.
+- `points` is a signed request returning `{ totalPoints }` (float), representing actual accrued points.
+- `expected-rewards` is a forward-looking estimator with no signed auth. Provide exactly one account selector: `address` or `accountId` (`"...n"`). Other fields are optional: `epoch`, maker/taker totals, calculation coefficients, and budget/rate overrides. Response: `{ epoch, total, domains }`; `tokensRaw` values are `"...n"` strings.
 
 ---
 
@@ -206,6 +291,7 @@ Request/response notes:
 ```text
 GET  /api/coins/verified
 POST /api/coins/metadata
+GET  /api/coins/{coin_type}       (deprecated shape)
 POST /api/zklogin/create
 ```
 
@@ -220,13 +306,77 @@ Response note:
 
 - Coin metadata entries can include `iconUrl`, `id`, `isGenerated`, and `metadataType` in addition to `name`, `symbol`, `description`, and `decimals`.
 
+zkLogin note:
+
+- `/api/zklogin/create` requires `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`; the private key never leaves the client. It returns `walletAddress`, `addressSeed`, and a `partialZkLoginSignature` and forwards downstream 400/401/502/504 statuses.
+
 Referral response note:
 
 - `/api/referrals/link` returns structured fields including `status`, `refCode`, `refereeAddress`, and `createdAt`.
 
 ---
 
+## Router Utilities
+
+```text
+POST /api/router/trade-route
+POST /api/router/transactions/add-trade
+```
+
+Router notes:
+
+- `trade-route` requires `coinInType` and `coinOutType`. Send exactly one amount: `coinInAmount` for fixed input or `coinOutAmount` for fixed output.
+- Fixed-output routing requires `slippage`. Route filters, `externalFee`, and `referrer` remain optional.
+- `transactions/add-trade` composes a quoted `completeRoute` into an existing serialized transaction and returns `{ tx, coinOutId }`.
+- `coinOutId` uses SDK-style Sui argument casing such as `{ "Input": 0 }`, `{ "Result": 3 }`, or `{ "NestedResult": [2, 1] }`.
+
+---
+
+## Metastable
+
+```text
+POST /api/metastable/vaults
+POST /api/metastable/tvl
+POST /api/metastable/fees/{duration_ms}
+POST /api/metastable/volume/{duration_ms}
+GET  /api/metastable/{vault_id}/coingecko/supply
+```
+
+Request/response notes:
+
+- The POST reads accept an optional `vaultIds` filter (`{ "vaultIds": ["0x..."] | null }`).
+- `vaults` returns vault objects with `objectId`, `objectType`, `metaCoinType`, `metaCoinDecimals`, `supply`, `metadatas`, `totalPriorities`, and `activeAssistantCap`.
+- `tvl`, `fees/{duration_ms}`, and `volume/{duration_ms}` return bare numbers; `{duration_ms}` is a path param in milliseconds.
+- Legacy GET routes (`GET /api/metastable/tvl`, `GET /api/metastable/24hr-volume`, `GET /api/metastable/{vault_id}/tvl`, `GET /api/metastable/{vault_id}/24hr-volume`) remain available. Prefer the POST routes.
+
+---
+
+## Birdeye Price Data
+
+```text
+POST /api/birdeye/historical
+POST /api/birdeye/market
+```
+
+Request/response notes:
+
+- `historical`: requires `coin` and `interval` (`"1H" | "1D" | "1W" | "1M"`); returns `{ historicalData: [{ price, timestamp, volume }] }`.
+- `market`: requires `coin`; returns nullable `price`, `liquidity`, `supply`, `circulatingSupply`, `marketcap`, `circulatingMarketcap`.
+
+---
+
+## Dynamic Gas
+
+```text
+POST /api/dynamic-gas
+```
+
+- Sponsors a serialized transaction with gas paid in a non-SUI coin: requires `serializedTx`, `walletAddress`, `gasCoinType`; returns `{ txBytes, sponsoredSignature }`.
+
+---
+
 ## Source of Truth
 
 - Swagger UI: `https://aftermath.finance/docs`
-- OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
+- Production OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
+- Complete local operation audit: `endpoint-inventory.md`

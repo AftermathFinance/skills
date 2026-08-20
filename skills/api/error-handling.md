@@ -6,14 +6,41 @@
 
 ## 1) Error Shapes to Parse
 
-### Standard API error envelope
+### API error variants
 
 ```typescript
-type ErrorResponse = {
+type DocumentedErrorResponse = {
   error_code: number;
   message: string;
   short_message?: string | null;
 };
+
+type ApiErrorBody =
+  | DocumentedErrorResponse
+  | { error: string }
+  | string
+  | null;
+```
+
+Clients must handle object envelopes, JSON strings such as `"Error 2019: ..."`,
+and plain text. When present, `X-Error-Code` contains the numeric code and
+`X-Error-Message` contains message text. Preview errors use `{ error }` and set
+`X-Error-Message: true`.
+
+Parse the response body as text first, then decode JSON when possible:
+
+```typescript
+async function readBody(response: Response): Promise<ApiErrorBody | unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+function getErrorMessage(response: Response, body: any): string {
+  if (body && typeof body === "object") return body.error ?? body.message ?? JSON.stringify(body);
+  if (typeof body === "string") return body;
+  return response.headers.get("X-Error-Message") ?? `HTTP ${response.status}`;
+}
 ```
 
 ### Preview-specific structured error envelope
@@ -24,7 +51,7 @@ Some preview routes can return HTTP `200` with an error payload:
 type PerpetualsErrorResponse = { error: string };
 ```
 
-When this happens, `data.error` is the primary signal. Response header `X-Error-Message: true` is useful when present, but do not depend on it as the only detector.
+When this happens, `data.error` is the primary signal. Do not depend on the header alone.
 
 ---
 
@@ -48,8 +75,9 @@ When this happens, `data.error` is the primary signal. Response header `X-Error-
 
 Retry only when the operation is transient.
 
-- Retryable: network errors, 429/5xx, stale object/version races after rebuild
+- Retryable: build-phase network errors, 429/5xx reads, explicit stale object/version rejection after a rebuild
 - Non-retryable: malformed requests, bad signatures, schema mismatch
+- Ambiguous: submit timeout or lost response after bytes were sent; reconcile the original transaction before rebuilding
 
 ```typescript
 function shouldRetry(error: any): boolean {
@@ -66,43 +94,56 @@ function shouldRetry(error: any): boolean {
 
 ---
 
-## 4) Build-Sign-Submit Retry Pattern
+## 4) Build-Sign-Submit Pattern
 
 ```typescript
-async function submitCcxtTx({ buildUrl, submitUrl, buildBody, signFns }: {
+async function postJson(url: string, body: unknown) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await readBody(response);
+  if (!response.ok) {
+    throw Object.assign(new Error(getErrorMessage(response, data)), {
+      status: response.status,
+      body: data,
+      errorCode: response.headers.get("X-Error-Code"),
+    });
+  }
+  return data as any;
+}
+
+async function buildAndSubmitCcxtTx({ buildUrl, submitUrl, buildBody, signFns }: {
   buildUrl: string;
   submitUrl: string;
   buildBody: any;
   signFns: Array<(signingDigest: string) => Promise<string>>;
 }) {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let build: { transactionBytes: string; signingDigest: string } | undefined;
+  for (let attempt = 0; attempt < 3 && !build; attempt++) {
     try {
-      const build = await fetch(buildUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildBody),
-      }).then(r => r.json());
-
-      const signatures = await Promise.all(signFns.map(fn => fn(build.signingDigest)));
-
-      const res = await fetch(submitUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionBytes: build.transactionBytes, signatures }),
-      });
-
-      const body = await res.json();
-      if (!res.ok) throw Object.assign(new Error("submit failed"), { status: res.status, body });
-      return body;
+      build = await postJson(buildUrl, buildBody);
     } catch (err) {
       if (attempt === 2 || !shouldRetry(err)) throw err;
       await new Promise(r => setTimeout(r, 300 * 2 ** attempt));
     }
   }
+
+  const signatures = await Promise.all(signFns.map(fn => fn(build!.signingDigest)));
+
+  // Submit once. A timeout after sending is ambiguous: the transaction may have
+  // executed. Reconcile account/order state before deciding to resubmit or rebuild.
+  return postJson(submitUrl, {
+    transactionBytes: build!.transactionBytes,
+    signatures,
+  });
 }
 ```
 
-If the sender and gas owner are different, include both signatures in submit payload order expected by your signer stack.
+Do not automatically rebuild after an ambiguous submit failure. If the server
+explicitly rejects stale object versions, rebuild from fresh state. If the
+response was lost, inspect account state, positions, and order history first.
 
 ---
 
@@ -122,11 +163,15 @@ async function callPreview(url: string, payload: unknown) {
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  const data: any = await readBody(res);
   const isPreviewError = !!data?.error || res.headers.get("X-Error-Message") === "true";
 
   if (!res.ok || isPreviewError) {
-    throw new Error(data?.error ?? data?.message ?? `Preview failed (${res.status})`);
+    throw new Error(
+      typeof data === "string"
+        ? data
+        : data?.error ?? data?.message ?? res.headers.get("X-Error-Message") ?? `Preview failed (${res.status})`,
+    );
   }
 
   return data;
@@ -137,7 +182,7 @@ async function callPreview(url: string, payload: unknown) {
 
 ## 6) Stream Recovery Rule
 
-For SSE or WebSocket disconnects:
+For WebSocket disconnects:
 
 1. Reconnect transport.
 2. Re-fetch a fresh snapshot from polling endpoints.
@@ -145,3 +190,62 @@ For SSE or WebSocket disconnects:
 4. Resume incremental updates.
 
 Never continue applying deltas to unknown stale state after reconnect.
+
+## 7) SDK transport classification
+
+`aftermath-ts-sdk` v3.0.0 wraps transport failures in
+`AftermathTransportError` while preserving the legacy HTTP message. Branch on
+`error.kind`:
+
+```typescript
+import { isAftermathTransportError } from "aftermath-ts-sdk";
+
+if (isAftermathTransportError(error)) {
+  switch (error.kind) {
+    case "http":
+      // inspect error.status and error.retryAfterMs
+      break;
+    case "network":
+    case "timeout":
+      // retry only idempotent reads
+      break;
+    case "abort":
+      // caller cancellation; normally do not retry
+      break;
+    case "decode":
+      // successful HTTP response was not valid JSON
+      break;
+  }
+}
+```
+
+Do not retry a `400` signature-verification failure or blindly retry a
+transaction request after a timeout. Reconcile a possibly accepted
+transaction first. See the SDK's [`transport-and-lifecycle.md`](../aftermath-ts-sdk/references/transport-and-lifecycle.md) for the
+`status`, `retryAfterMs`, `code`, `cause`, and `abortSource` fields.
+
+## 8) Reusable-auth failures
+
+For terms-auth routes, a 400 means one of the wallet address, base64 bytes,
+exact message text, or signature is invalid. The accepted decoded message is
+only `Aftermath Terms and Conditions`. Rebuild that auth object rather than
+retrying the old action/date message. Route-specific IDs and filters are not
+part of the signed bytes.
+
+## 9) Gas-pool error codes
+
+Gas-pool calls map the shared service's structured failures into stable
+Aftermath error codes. Read `X-Error-Code` (and the JSON error string/body) when
+deciding whether to retry:
+
+| Code | Meaning | Typical action |
+|---:|---|---|
+| `2030` | No gas pool or insufficient pool balance | Fund a pool or choose another sponsor |
+| `2031` | Pool has no room, is not ready, or does not approve the sponsor | Retry after a short backoff |
+| `2032` | Gas-pool authorization failed | Reconnect/check the wallet and authorization |
+| `2033` | Transaction kind/command/reference cannot be sponsored | Fix the transaction; do not retry unchanged |
+| `2018` | Shared gas-pool service or transport failure | Treat as transient only when the underlying cause is transient |
+
+Invalid reusable terms authentication is `2034` and is not retryable without
+rebuilding the signature. These codes are especially useful for
+`/api/gas-pool/transactions/sponsor` and embedded perpetuals sponsorship.

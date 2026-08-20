@@ -8,7 +8,7 @@
 
 - CCXT write endpoints use `accountId` as an account capability object ID (`0x...`).
 - CCXT read/stream endpoints use `accountNumber` (number).
-- Native Perpetuals account endpoints use numeric `accountId`.
+- Native Perpetuals account endpoints use a numeric account ID, commonly transported as a mandatory `"123n"` string.
 
 Mixing these is one of the most common integration failures.
 
@@ -32,9 +32,9 @@ Current schema supports:
 
 - `type`: `market | limit`
 - `side`: `buy | sell`
-- optional `amount`, `price`, `reduceOnly`, `expirationTimestampMs`
+- optional `amount`, `price`, `reduceOnly`, `expirationTimestampMs`, `clientOrderId`
 
-Do not assume fields like `clientOrderId`, `timeInForce`, or `postOnly` are accepted by `/api/ccxt/build/createOrders` unless the OpenAPI schema adds them.
+Fields such as `timeInForce` and `postOnly` are unsupported by `/api/ccxt/build/createOrders` and may be ignored if sent.
 
 ---
 
@@ -49,7 +49,7 @@ Keep the cursor from each response if you need full history backfill.
 
 ## 5) Stop-Order Data Requires Signed Auth
 
-`/api/perpetuals/account/stop-order-datas` and `/api/perpetuals/vault/stop-order-datas` require auth payload fields (`walletAddress`, `bytes`, `signature`). Optional `marketIds` narrows the response, and raw request schemas still model account-or-vault targeting fields.
+`/api/perpetuals/account/stop-order-datas` and `/api/perpetuals/vault/stop-order-datas` require `walletAddress`, `bytes`, `signature`, and one target: `accountId: "...n"` or `vaultId`. Optional `marketIds` narrows the response.
 
 ---
 
@@ -85,21 +85,20 @@ After any fill/cancel/withdraw/deposit/leverage update, refresh account and posi
 
 ---
 
-## 10) Use the OpenAPI Spec as Source of Truth
+## 10) Follow Endpoint Wire Formats
 
-When docs and examples disagree, verify against:
+Use the public OpenAPI for discovery:
 
 - `https://aftermath.finance/api/openapi/spec.json`
 
-Schema drift is normal; hardcode less and validate request shapes in code.
+Use the endpoint-specific request and response formats in this skill when
+serializing BigInt values, preview unions, and pool paths.
 
 ---
 
-## 11) Native Integer Fields May Arrive as Strings
+## 11) Native BigInt Fields Use Exact Strings
 
-Native `accountId`, timestamps, order IDs, and amount-like fields are sometimes documented as decimal strings, optionally with trailing `n`.
-
-If you bypass the SDK, parse raw HTTP payloads carefully instead of assuming all numeric-looking values are plain JSON numbers.
+Native BigInt fields require `"...n"` request strings and return `"...n"` response strings. Plain numbers and strings without the suffix fail for those inputs. Other timestamps and counters remain JSON numbers, so follow endpoint-specific types.
 
 ---
 
@@ -113,7 +112,7 @@ Do not hardcode the response as `{ txKind }` only if you compose transactions cl
 
 ## 13) No Built-In Dead Man's Switch
 
-There is no protocol-level scheduled cancel safety net for your bot.
+The public API does not provide a scheduled cancel or dead-man-switch endpoint.
 
 Implement a heartbeat-driven kill switch that cancels all open orders when the strategy loop stalls or process health checks fail.
 
@@ -124,3 +123,88 @@ Implement a heartbeat-driven kill switch that cancels all open orders when the s
 `/api/ccxt/submit/*` accepts `signatures[]`, not a single signature.
 
 When sender and gas owner are different, collect both signatures over the same `signingDigest` before submit.
+
+---
+
+## 15) Migrating From the Pre-v3 API
+
+If your integration predates the v3.0.0 service surface, these renames and
+removals will break requests that still use the old shapes:
+
+- Candle intervals: `intervalMs` / `interval_ms` (milliseconds) are gone. Native `candle-history` takes `resolution` and CCXT OHLCV takes `timeframe`. See `native.md` for the full enum.
+- Candles WebSocket: `GET /api/perpetuals/ws/market-candles/{market_id}/{interval_ms}` no longer exists. Subscribe with `marketCandles` on `/api/perpetuals/ws/updates`.
+- Builder codes: `integratorAddress` is replaced by numeric `integratorId`; order-level `builderCode.takerFee` is now `builderCode.integratorFee`; config `maxTakerFee` is now `maxIntegratorFee`. The integrator-vault routes (`integrator-vaults`, `create-integrator-vault`, `claim-integrator-vault-fees`) are removed in favor of one-time integrator registration.
+- SL/TP: `stopLossIndexPrice` / `takeProfitIndexPrice` are now `stopLossPrice` / `takeProfitPrice`. Transaction inputs can also include `triggerPriceType`; basic order-history `slTp` does not.
+- Rewards: `/api/rewards/points` returns `{ totalPoints }` (float, was `{ points }`); `/api/rewards/history` now requires `bytes` + `signature`.
+- Removed response fields: position `makerFee`/`takerFee`; vault `totalCollateral`/`totalCollateralUsd`; market params `gasPriceTwapPeriodMs`, `forceCancelFee`, `gasPriceTakerFee`, `zScoreThreshold`; liquidation `forceCancelFeesUsd`. Price-feed IDs are numeric.
+- Ordering: markets sort by symbol; positions sort by market ID; pending bids and asks each sort by order ID; stop-order market groups sort by market ID. Inner stop-order ordering is unspecified.
+
+---
+
+## 16) TypeScript SDK May Lag Native Renames
+
+`sdk-reference.md` describes selected SDK flows, but installed SDK versions can expose different names from raw native HTTP. Verify your package's generated types instead of assuming both surfaces match.
+
+---
+
+## 17) CCXT Streams Use WebSockets
+
+Connect to CCXT stream routes with WebSockets and pass `chId` or
+`accountNumber` as query parameters. Do not use `EventSource` or GET request
+bodies for these streams.
+
+## 18) Reusable Auth Is Not Action-Specific JSON
+
+Current service-authenticated routes require base64 bytes that decode exactly to
+`Aftermath Terms and Conditions`. Sign that message once and reuse the
+signature. DCA/limit cancellation IDs, referral codes, and history filters are
+plain request fields. Old SDK helpers that generate `CANCEL_*`, referral
+action/date, or `SPONSOR_GAS` JSON are stale for this service. See
+`authentication.md`.
+
+## 19) Gas Budget Units Are MIST
+
+Gas-pool sponsorship and embedded perpetuals sponsor configs accept optional
+`gasBudget` in SUI MIST. Supplying it asks the service to sign at exactly that
+budget; omitting it lets the service derive one. Do not send a human-readable
+SUI amount.
+
+## 20) Address-Balance Gas Is a Separate CCXT Funding Mode
+
+`metadata.gasFromAddressBalance` cannot be combined with `gasCoins`.
+`fromAddressBalance` and `toAddressBalance` on CCXT deposit/withdraw are also
+exclusive choices, not additive fallbacks. This mode adds a single-epoch
+expiration and changes which SUI balance pays embedded oracle fees.
+
+## 21) Summary Routes Return Composite Objects
+
+`POST /api/pools/summary` returns `{ pool, stats }[]`, not `PoolStats[]`.
+`POST /api/farms/summary` returns `{ farmId, tvl, rewardsTvl }[]`. Both routes
+cache computed data for about 30 seconds and accept optional ID filters.
+
+## 22) Kebab-Case Normalization Is Enforced
+
+Use `/api/rewards/expected-rewards` and the other hyphenated paths in
+`endpoint-inventory.md`. A camelCase spelling such as
+`/api/rewards/expectedRewards` is not a compatibility alias.
+
+## 23) zkLogin Takes a Public Key
+
+`POST /api/zklogin/create` accepts base64 `ephemeralPublicKey`, not an
+ephemeral private keypair. Keep the private key client-side and preserve the
+route's downstream 400/401/502/504 status semantics.
+
+## 24) SDK Route Names Are Not Proof of Service Support
+
+The v3.0.0 SDK still contains removed integrator-vault builders and legacy
+router/DCA/auth methods. Compare the SDK method's literal `fetchApi` path with
+the current service inventory before shipping an integration; use the raw API
+when a typed helper is behind the service.
+
+## 25) Gas-Pool Errors Are Actionable
+
+Gas-pool failures are mapped to `2030` (insufficient funds), `2031`
+(temporarily unavailable), `2032` (authorization), or `2033` (transaction not
+sponsorable). `2018` is the generic shared-service fallback and `2034` is
+signature verification. Use the error code and headers to choose between
+backoff, wallet re-authentication, and rebuilding the transaction.

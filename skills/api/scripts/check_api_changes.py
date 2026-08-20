@@ -10,10 +10,11 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 SPEC_URL = "https://aftermath.finance/api/openapi/spec.json"
+USER_AGENT = "Mozilla/5.0 OpenCode API validation"
 
 
 @dataclass
@@ -47,13 +48,24 @@ def load_state(state_path: Path) -> dict:
 
 
 def fetch_spec_hash(url: str) -> str:
-    with urlopen(url) as response:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request) as response:
         body = response.read()
     return hashlib.sha256(body).hexdigest()
 
 
+class NonInteractiveInputError(RuntimeError):
+    """Raised when an interactive confirmation cannot read stdin."""
+
+
 def ask_yes_no(prompt: str) -> bool:
-    ans = input(prompt).strip().lower()
+    try:
+        ans = input(prompt).strip().lower()
+    except EOFError:
+        print()
+        raise NonInteractiveInputError(
+            "No interactive input; re-run with --yes for non-interactive checks."
+        )
     return ans in {"y", "yes"}
 
 
@@ -65,6 +77,11 @@ def main() -> int:
         "--force",
         action="store_true",
         help="Ignore 24h window and prompt immediately.",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Query immediately without prompting (for CI/non-interactive use).",
     )
     args = parser.parse_args()
 
@@ -89,10 +106,14 @@ def main() -> int:
         )
         return 0
 
-    should_query = ask_yes_no(
-        "More than 24h since Last validated. "
-        f"Query {SPEC_URL} for API changes now? [y/N]: "
-    )
+    prompt_prefix = "Forced check requested. " if args.force else "More than 24h since Last validated. "
+    try:
+        should_query = args.yes or ask_yes_no(
+            f"{prompt_prefix}Query {SPEC_URL} for API changes now? [y/N]: "
+        )
+    except NonInteractiveInputError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     if not should_query:
         print("No query executed. State unchanged.")
         return 0

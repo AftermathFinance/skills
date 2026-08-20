@@ -31,23 +31,20 @@ Unallocated collateral sits in the account but is NOT protecting any position. Y
 | **Maintenance Margin Ratio** | Below this = liquidation | `market.maintenanceMarginRatio()` or `market.marketParams.marginRatioMaintenance` |
 | **Max Leverage** | `1 / initialMarginRatio` | `market.maxLeverage()` or `Market.limits.leverage.max` |
 
-### Liquidation Cascade
+### Liquidation Signals
 
-Aftermath uses a four-layer liquidation system:
-
-```
-1. Partial Liquidation   -- Reduce position to restore margin health
-2. Insurance Fund        -- Absorbs losses if position is bankrupt
-3. Socialized Losses     -- Spread across profitable traders (rare)
-4. Auto-Deleverage (ADL) -- Close profitable positions against bankrupt ones (extreme)
-```
+The API exposes maintenance margin, liquidation, insurance-fund fee, and ADL
+related fields. It does not establish a complete liquidation sequence. Use the
+current protocol documentation before modeling liquidation ordering or loss
+allocation.
 
 ### Calculating Margin Health
 
 ```typescript
 // For a single isolated position:
 // margin ratio = position collateral / notional value
-// notional = abs(size) * mark price
+// Prefer the position's API-computed margin ratio. Mark price is the canonical
+// price for an independent liquidation-oriented calculation.
 
 async function checkPositionHealth(
   account: PerpetualsAccount,
@@ -57,10 +54,11 @@ async function checkPositionHealth(
   const position = account.positionForMarketId({ marketId });
   if (!position) return { status: "NO_POSITION" };
 
-  const notional = Math.abs(Number(position.baseAssetAmount)) * market.indexPrice;
-  const collateral = Number(position.collateral);
-  const marginRatio = collateral / notional;
-  const maintenanceRatio = market.maintenanceMarginRatio();
+  const marginRatio = Number(position.marginRatio);
+  const maintenanceRatio = Number(market.marketParams.marginRatioMaintenance);
+  if (!Number.isFinite(marginRatio) || !Number.isFinite(maintenanceRatio)) {
+    throw new Error("Missing margin data");
+  }
 
   return {
     marginRatio,
@@ -126,17 +124,35 @@ Use native Perpetuals endpoints to enforce limits before submitting transactions
 ### Max Order Size Guard
 
 ```typescript
-async function fetchMaxOrderSize(accountId: number, marketId: string, side: 0 | 1) {
+async function fetchMaxOrderSize(accountId: bigint, marketId: string, side: 0 | 1) {
   const res = await fetch("https://aftermath.finance/api/perpetuals/account/max-order-size", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accountId, marketId, side }), // side enum: 0=bid, 1=ask
+    body: JSON.stringify({ accountId: `${accountId}n`, marketId, side }),
   });
-  return res.json();
+  const text = await res.text();
+  let body: unknown = text;
+  try { body = text ? JSON.parse(text) : null; } catch {}
+  if (!res.ok) throw new Error(typeof body === "string" ? body : JSON.stringify(body));
+  return body as { maxOrderSize: string };
 }
 ```
 
 Call this before placing large orders or increasing leverage.
+
+### Signed data and sponsored gas
+
+For current service routes that require wallet authentication, sign the exact
+reusable message `Aftermath Terms and Conditions` once per wallet connection;
+keep order IDs and filters outside the signed bytes. This applies to stop/TWAP
+reads, DCA/limit cancellation, rewards/referral actions, gas-pool sponsorship,
+and authenticated histories. See `authentication.md` for the wire format.
+
+When using gas-pool sponsorship or a perpetuals sponsor config, treat an
+optional `gasBudget` as SUI MIST and set it conservatively. If omitted, let the
+service derive the budget. Returned/reclaimed order gas is sent back to the
+account or vault owner in the current service behavior; do not model it as permanently
+lost sponsor inventory.
 
 ### Historical Risk Telemetry
 
@@ -207,7 +223,7 @@ function enforceHardLimits(limits: HardLimits, state: BotState): string | null {
 
 ## Kill Switch Pattern
 
-Aftermath has **no built-in dead man's switch** (see `gotchas.md`). Bots must implement their own.
+The public API has no dead-man-switch endpoint (see `gotchas.md`). Bots must implement their own.
 
 ### Heartbeat-Based Kill Switch
 
@@ -248,7 +264,8 @@ class KillSwitch {
       console.log("All orders cancelled successfully");
     } catch (err) {
       console.error("Kill switch cancel failed:", err);
-      // At this point, manual intervention is required
+      this.armed = true;
+      throw err;
     }
   }
 
@@ -260,44 +277,75 @@ class KillSwitch {
 ### Usage with CCXT API
 
 ```typescript
+async function checkedJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  const text = await response.text();
+  let body: unknown = text;
+  try { body = text ? JSON.parse(text) : null; } catch {}
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`);
+  return body as T;
+}
+
 const killSwitch = new KillSwitch(30_000, async () => {
   // Cancel all orders across all markets
-  const markets = await fetch(`${BASE_URL}/api/ccxt/markets`).then(r => r.json());
+  const markets = await checkedJson<any[]>(`${BASE_URL}/api/ccxt/markets`);
+  const failures: unknown[] = [];
 
   for (const market of markets) {
-    const pendingOrders = await fetch(`${BASE_URL}/api/ccxt/myPendingOrders`, {
-      method: "POST",
-      body: JSON.stringify({ accountNumber, chId: market.id }),
-    }).then(r => r.json());
-
-    if (pendingOrders.length > 0) {
-      const orderIds = pendingOrders.map((o: any) => o.id);
-      // Build -> sign -> submit cancel
-      const { transactionBytes, signingDigest } = await fetch(
-        `${BASE_URL}/api/ccxt/build/cancelOrders`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            chId: market.id,
-            orderIds,
-            accountId: accountCapId,
-            deallocateFreeCollateral: false,
-            metadata: { sender: walletAddress },
-          }),
-        }
-      ).then(r => r.json());
-
-      const signature = signDigest(signingDigest, keypair);
-      await fetch(`${BASE_URL}/api/ccxt/submit/cancelOrders`, {
+    try {
+      const pendingOrders = await checkedJson<any[]>(`${BASE_URL}/api/ccxt/myPendingOrders`, {
         method: "POST",
-        body: JSON.stringify({ transactionBytes, signatures: [signature] }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountNumber, chId: market.id }),
       });
+
+      if (pendingOrders.length > 0) {
+        const orderIds = pendingOrders.map((o: any) => o.id);
+        // Build -> sign -> submit cancel
+        const { transactionBytes, signingDigest } = await checkedJson<{
+          transactionBytes: string;
+          signingDigest: string;
+        }>(
+          `${BASE_URL}/api/ccxt/build/cancelOrders`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chId: market.id,
+              orderIds,
+              accountId: accountCapId,
+              deallocateFreeCollateral: false,
+              metadata: { sender: walletAddress },
+            }),
+          },
+        );
+
+        // signingDigest is base64; use a signer that decodes it before signing.
+        const signature = signDigest(signingDigest, keypair);
+        await checkedJson(`${BASE_URL}/api/ccxt/submit/cancelOrders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionBytes, signatures: [signature] }),
+        });
+
+        const remaining = await checkedJson<any[]>(`${BASE_URL}/api/ccxt/myPendingOrders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountNumber, chId: market.id }),
+        });
+        if (remaining.length > 0) throw new Error(`Cancel verification failed for ${market.id}`);
+      }
+    } catch (error) {
+      failures.push(error);
+      console.error(`Cancel failed for ${market.id}:`, error);
     }
   }
+
+  if (failures.length > 0) throw new AggregateError(failures, "One or more markets failed to cancel");
 });
 
 // In your main loop:
-setInterval(() => killSwitch.check(), 5_000);
+setInterval(() => void killSwitch.check().catch(console.error), 5_000);
 
 // In your trading logic:
 function onTick() {
@@ -305,9 +353,22 @@ function onTick() {
   // ... trading logic ...
 }
 
-// On SIGINT/SIGTERM:
-process.on("SIGINT", () => killSwitch.trigger("Manual interrupt"));
-process.on("SIGTERM", () => killSwitch.trigger("Process terminated"));
+async function shutdown(reason: string) {
+  try {
+    await Promise.race([
+      killSwitch.trigger(reason),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Cancel timeout")), 20_000)),
+    ]);
+  } catch (error) {
+    console.error("Shutdown cancellation failed:", error);
+    process.exitCode = 1;
+  } finally {
+    process.exit(process.exitCode ?? 0);
+  }
+}
+
+process.once("SIGINT", () => void shutdown("Manual interrupt"));
+process.once("SIGTERM", () => void shutdown("Process terminated"));
 ```
 
 ---
@@ -321,7 +382,7 @@ process.on("SIGTERM", () => killSwitch.trigger("Process terminated"));
 | **Wrong market/size** | Cancel order immediately | Add order validation |
 | **Deposit race condition** | Wait for first deposit to confirm, then retry | Serialize deposit operations |
 | **API returning errors** | Pause trading, check status | Implement backoff (see error-handling.md) |
-| **Unexpected fills** | Check `myPendingOrders` for stale orders | Cancel all, audit order history |
+| **Unexpected fills** | Refresh positions and account state | Cancel pending orders, audit order history |
 
 ---
 
