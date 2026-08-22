@@ -6,10 +6,9 @@ This is the preferred and canonical API surface for integrations because it expo
 
 Production OpenAPI: `https://aftermath.finance/api/openapi/spec.json`
 Production spec last hashed: `2026-07-28`
-Local service snapshot: `service-af-fe` `d5cb82c` (2026-08-19)
 
 For reusable wallet signatures, read `authentication.md`. For the complete
-route audit, read `endpoint-inventory.md`.
+route index, read `endpoint-inventory.md`.
 
 ---
 
@@ -423,7 +422,7 @@ GET /api/perpetuals/config
 ```
 
 Returns `{ aflpVaultId, officialVaultIds, defaultCollateralCoinType }` for
-the current network. A static-enricher outage returns a 500-style API error;
+the current network. An upstream config outage returns a 500-style API error;
 do not silently substitute an empty vault list or collateral type.
 
 ### Vault predeposit totals and TVL

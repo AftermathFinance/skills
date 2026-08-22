@@ -1,8 +1,8 @@
 # API Authentication and Signed Requests
 
-The current `service-af-fe` source centralizes several wallet-authenticated
-routes on one reusable signature check. Do not infer the signed payload from
-old SDK message-builder names or from stale comments in individual handlers.
+The API centralizes several wallet-authenticated routes on one reusable
+signature check. Do not infer the signed payload from old SDK
+message-builder names.
 
 ## Reusable terms signature
 

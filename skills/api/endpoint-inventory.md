@@ -1,10 +1,10 @@
 # Current API Operation Inventory
 
-Generated from the `utoipa::path` declarations in `service-af-fe` `d5cb82c`.
+Generated from the Aftermath API's OpenAPI definition, as of 2026-08-19.
 
-The source contains **260 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **257 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
+The API exposes **260 OpenAPI operations**. `/api/metastable/tvl`, `/api/pools`, and `/api/wallet/{address}/balances` each have separate GET and POST operations, so there are **257 distinct URL paths**. Keep this file as the audit index; use the focused references for schemas and behavior.
 
-The extractor intentionally ignores source lines beginning with `//` so commented-out historical handlers are not treated as live API operations. This is a source/OpenAPI declaration index, not a deployment/runtime availability check.
+This is an OpenAPI declaration index, not a deployment/runtime availability check.
 
 ## addresses
 

@@ -22,7 +22,7 @@ The package is `aftermath-ts-sdk`; do not use the removed
 
 Before using signed DCA, limit-order, referral, gas-pool, stop-order, or TWAP
 helpers, read [backend-alignment.md](../aftermath-ts-sdk/references/backend-alignment.md).
-The current `service-af-fe` snapshot accepts a reusable signature over the
+The API accepts a reusable signature over the
 exact message `Aftermath Terms and Conditions`; deprecated v3.1.0 SDK message
 builders still emit old action-specific JSON. DCA and limit-order cancellation
 IDs now travel as plain `orderObjectIds`.

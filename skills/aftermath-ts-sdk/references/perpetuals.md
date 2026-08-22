@@ -84,7 +84,7 @@ Order-level builder data is `{ integratorId, integratorFee }`. The v3 service
 does not use the removed address-based integrator vault model.
 
 The source still contains the following methods/types, but the corresponding
-service routes are removed and must not be used against `service-af-fe`:
+routes are removed and must not be used against the current API:
 
 ```text
 getCreateBuilderCodeIntegratorVaultTx

@@ -111,9 +111,8 @@ getPoints, getHistory, getClaimable, getExpectedRewards, getClaimTransaction
 ```
 
 `getExpectedRewards` calls the current kebab-case `expected-rewards` route.
-`getPoints` and `getHistory` require the service's current terms auth when
-called against `service-af-fe`; claim and expected-rewards have their own
-request shapes.
+`getPoints` and `getHistory` require the API's current terms auth; claim and
+expected-rewards have their own request shapes.
 
 `sdk.Referrals()` exposes:
 
@@ -159,10 +158,10 @@ getTransactionForCompleteTradeRoute, addTransactionForCompleteTradeRoute,
 getInteractionEvents
 ```
 
-The current `service-af-fe` source exposes only
-`POST /api/router/trade-route` and `POST /api/router/transactions/add-trade`.
-Use those two methods/paths only when targeting that service; the other SDK
-helpers require an API deployment that still serves the legacy router routes.
+The current API exposes only `POST /api/router/trade-route` and
+`POST /api/router/transactions/add-trade`. Use those two methods/paths only;
+the other SDK helpers require an API deployment that still serves the legacy
+router routes.
 
 ## Coin, prices, wallet, and Sui
 
@@ -214,7 +213,7 @@ The service's `save-public-key` endpoint has its own `bytes`/`signature`
 protocol. Use `createTermsAndConditionsMessage()` for the canonical reusable
 terms string/bytes for service routes. The deprecated
 `createSignTermsAndConditionsMessageToSign` helper returns an action object and
-is not the service-af-fe reusable terms payload.
+is not the API's reusable terms payload.
 
 ## Faucet, multisig, NFT AMM, and SuiFrens
 

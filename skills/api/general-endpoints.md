@@ -1,8 +1,7 @@
 # General Aftermath API Endpoints
 
-These current service families are outside the core CCXT/native-perpetuals
-references. Paths below are from `service-af-fe` commit `d5cb82c`; preserve
-the exact kebab-case spelling.
+These current API families are outside the core CCXT/native-perpetuals
+references. Preserve the exact kebab-case spelling of the paths below.
 
 ## Network config and auth
 
@@ -43,8 +42,8 @@ type PerpetualsConfig = {
 };
 ```
 
-It returns a 500-style API error if the static enricher has not served a
-usable config. `GET /api/sui/epoch` returns a bare string; `GET
+It returns a 500-style API error when the upstream network config is
+unavailable. `GET /api/sui/epoch` returns a bare string; `GET
 /api/sui/system-state` returns the camelCase Sui system-state summary with
 integer-like fields represented as strings.
 
@@ -115,7 +114,7 @@ terms message.
 POST /api/zklogin/create
 ```
 
-The current TS-helper proxy accepts:
+The route accepts:
 
 ```typescript
 type ZkLoginCreateRequest = {

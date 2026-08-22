@@ -380,4 +380,4 @@ POST /api/dynamic-gas
 
 - Swagger UI: `https://aftermath.finance/docs`
 - Production OpenAPI JSON: `https://aftermath.finance/api/openapi/spec.json`
-- Complete local operation audit: `endpoint-inventory.md`
+- Complete operation index: `endpoint-inventory.md`
