@@ -1,14 +1,13 @@
 ---
 name: aftermath-ts-sdk
-description: Integrate and troubleshoot the current Aftermath TypeScript SDK for Sui, including Aftermath.create initialization, protocol accessors, transaction builders, perpetuals, pools, farms, transport errors, gRPC setup, and SDK/API compatibility. Use when working with the aftermath-ts-sdk package, its TypeScript source/types, or code that must reconcile the SDK with service-af-fe endpoints.
+description: Integrate and troubleshoot the current Aftermath TypeScript SDK for Sui, including Aftermath.create initialization, protocol accessors, transaction builders, perpetuals, pools, farms, transport errors, gRPC setup, and SDK/API compatibility. Use when working with the aftermath-ts-sdk package, its TypeScript source/types, or code that must reconcile the SDK with the Aftermath API.
 ---
 
 # Aftermath TypeScript SDK
 
-Use the repository snapshot documented here: `aftermath-ts-sdk` `v3.1.0` at
-commit `9a1b41db` (2026-08-19). The companion API snapshot is
-`service-af-fe` commit `d5cb82c` (2026-08-19). Read the focused reference files
-only for the package or compatibility surface being changed.
+This skill documents `aftermath-ts-sdk` v3.1.0 against the Aftermath API as of
+2026-08-19. Read the focused reference files only for the package or
+compatibility surface being changed.
 
 ## Start with the supported entry point
 

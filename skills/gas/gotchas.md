@@ -1,6 +1,6 @@
 # Gotchas
 
-Non-obvious traps from working on Aftermath move-iperps. Each entry includes the cause so you can recognize a similar shape elsewhere.
+Non-obvious traps from working on Aftermath's Move codebases. Each entry includes the cause so you can recognize a similar shape elsewhere.
 
 ## `#[error]` attributes are stripped through macro parameters
 

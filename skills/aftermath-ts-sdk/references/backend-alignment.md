@@ -1,12 +1,9 @@
-# SDK and `service-af-fe` Alignment
+# SDK and API Alignment
 
-Compare these two local snapshots before assuming a typed SDK method is a
-working service call:
-
-- SDK: `aftermath-ts-sdk` `v3.1.0` at `9a1b41db`.
-- API service: `service-af-fe` `d5cb82c`.
-- Service surface: 260 OpenAPI operations; `/api/pools` intentionally has both
-  GET (deprecated) and POST (current).
+Check the following before assuming a typed SDK method is a working API call.
+This page applies to `aftermath-ts-sdk` v3.1.0 and the Aftermath API as of
+2026-08-19, whose surface is 260 OpenAPI operations; `/api/pools`
+intentionally has both GET (deprecated) and POST (current).
 
 ## Current service changes that affect SDK callers
 
@@ -72,12 +69,12 @@ receive it.
 | `POST /api/perpetuals/rebates/create-referral-csv-rebates` | `Perpetuals.getReferralCsvRebates` is present. |
 | `/api/ccxt/build/*` address-balance options | Raw API supports `metadata.gasFromAddressBalance`, deposit `fromAddressBalance`, and withdraw `toAddressBalance`; verify SDK types before relying on them. |
 | Gas-pool/perps `gasBudget` | Current service accepts optional MIST `gasBudget`; v3.1.0 `ApiGasPoolSponsorBody` and `PerpetualsSponsorConfig` types still do not expose it. Extend the raw request type when using an exact budget. |
-| `POST /api/zklogin/create` | Current service is a plain TS-helper proxy: use `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`. Do not send an ephemeral private keypair. |
+| `POST /api/zklogin/create` | Use `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`. Do not send an ephemeral private keypair. |
 
 ## Known stale SDK calls
 
 These methods exist in the SDK source but do not correspond to current
-`service-af-fe` operations or current request shapes:
+current API operations or request shapes:
 
 - `Dca.getAllDcaOrders` calls `dca/orders`; current service exposes `active`,
   `past`, `cancel`, `transactions/create-order`, plus deprecated `user/add`
@@ -119,7 +116,7 @@ These methods exist in the SDK source but do not correspond to current
 ## Reconciliation workflow
 
 1. Inspect the SDK method's `fetchApi` path and input type.
-2. Check the matching route in the service source/OpenAPI operation.
+2. Check the matching OpenAPI operation.
 3. Compare camelCase names, `"...n"` BigInt fields, signed-auth requirements,
    and whether the response is bare, wrapped, or a `txKind` object.
 4. If the method calls an absent/removed route, use the current raw endpoint or

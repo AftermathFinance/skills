@@ -148,7 +148,7 @@ An orchestrator (`scripts/update-tables.py`) runs `sui move test -s csv` and `su
 
 The orchestrator is the only thing that runs `sui`. A pinned version lives in `tables/sui-version.txt` and the orchestrator refuses to run on a mismatch. This keeps measurements comparable across machines and over time.
 
-If the table system isn't present in a repo, copy it from `move-iperps` or build the same idea using the underlying sui commands above. The system is a current best guess; the underlying sui flags and `.mv`/`.mvb` formats are stable.
+If the table system isn't present in a repo, copy it from an Aftermath Move repo that already has it, or build the same idea using the underlying sui commands above. The system is a current best guess; the underlying sui flags and `.mv`/`.mvb` formats are stable.
 
 ## When to reach for which tool
 

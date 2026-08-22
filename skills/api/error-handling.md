@@ -234,7 +234,7 @@ part of the signed bytes.
 
 ## 9) Gas-pool error codes
 
-Gas-pool calls map the shared service's structured failures into stable
+Gas-pool calls map the sponsorship backend's structured failures into stable
 Aftermath error codes. Read `X-Error-Code` (and the JSON error string/body) when
 deciding whether to retry:
 
@@ -244,7 +244,7 @@ deciding whether to retry:
 | `2031` | Pool has no room, is not ready, or does not approve the sponsor | Retry after a short backoff |
 | `2032` | Gas-pool authorization failed | Reconnect/check the wallet and authorization |
 | `2033` | Transaction kind/command/reference cannot be sponsored | Fix the transaction; do not retry unchanged |
-| `2018` | Shared gas-pool service or transport failure | Treat as transient only when the underlying cause is transient |
+| `2018` | Gas-pool backend or transport failure | Treat as transient only when the underlying cause is transient |
 
 Invalid reusable terms authentication is `2034` and is not retryable without
 rebuilding the signature. These codes are especially useful for

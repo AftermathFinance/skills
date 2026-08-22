@@ -1,6 +1,6 @@
 ---
 name: aftermath-perpetuals
-description: Integrate and troubleshoot the current Aftermath HTTP/OpenAPI and WebSocket API, including native perpetuals, CCXT, DCA and limit orders, pools, farms, staking, prices, auxiliary utilities, wallet/auth endpoints, and operational safety. Use for raw service-af-fe requests, endpoint schemas, API failures, and API-side compatibility checks; use the dedicated aftermath-ts-sdk skill for typed SDK integration.
+description: Integrate and troubleshoot the current Aftermath HTTP/OpenAPI and WebSocket API, including native perpetuals, CCXT, DCA and limit orders, pools, farms, staking, prices, auxiliary utilities, wallet/auth endpoints, and operational safety. Use for raw Aftermath API requests, endpoint schemas, API failures, and API-side compatibility checks; use the dedicated aftermath-ts-sdk skill for typed SDK integration.
 ---
 
 # Aftermath API Integration
@@ -10,10 +10,10 @@ Last validated: `2026-07-28`
 Production spec last hashed by the local change checker: `2026-07-28`
 Canonical docs UI: `https://aftermath.finance/docs`
 
-Local source snapshots used for the current references:
+Surface documented here:
 
-- API service: `service-af-fe` `d5cb82c` (2026-08-19), 260 OpenAPI operations.
-- TypeScript SDK: `aftermath-ts-sdk` `v3.1.0` at `9a1b41db` (2026-08-19).
+- Aftermath HTTP/WebSocket API: 260 OpenAPI operations, as of 2026-08-19.
+- TypeScript SDK: `aftermath-ts-sdk` v3.1.0.
 
 ## Fast Routing
 
@@ -101,8 +101,8 @@ Post-v3 service updates:
   object/stat data used by the frontend.
 - CCXT metadata supports `gasFromAddressBalance`; deposit and withdraw support
   `fromAddressBalance` and `toAddressBalance` respectively.
-- DCA/limit/router transaction construction and zkLogin creation now use the
-  TS-helper service; zkLogin accepts a base64 ephemeral public key.
+- DCA/limit/router transaction construction and zkLogin creation changed shape;
+  zkLogin accepts a base64 ephemeral public key.
 - Public paths are kebab-case where normalized, including
   `/api/rewards/expected-rewards`; do not resurrect camelCase variants.
 - Gas-pool failures now map to stable codes `2030`–`2033` (with `2018` as the
@@ -149,21 +149,3 @@ Run:
 ```bash
 python3 skills/api/scripts/check_api_changes.py
 ```
-
-## Local Source Coverage Check
-
-When auditing a local `service-af-fe` checkout, compare its source/OpenAPI
-route declarations with the committed operation inventory:
-
-```bash
-python3 skills/api/scripts/check_local_coverage.py \
-  --service-root /path/to/service-af-fe
-```
-
-The checker ignores commented-out `utoipa::path` handlers, supports inline
-paths and same-file `&str` path constants, and exits nonzero if an operation is
-missing or extra. This is declaration coverage only: it does not verify Actix
-registration, reverse-proxy routing, deployed runtime availability, or response
-behavior. Use deployment-aware smoke tests for those checks. It does not edit
-the inventory; regenerate that file only after reviewing the source diff and
-response-shape changes.
