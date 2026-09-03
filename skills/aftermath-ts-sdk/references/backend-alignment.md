@@ -70,6 +70,7 @@ receive it.
 | `/api/ccxt/build/*` address-balance options | Raw API supports `metadata.gasFromAddressBalance`, deposit `fromAddressBalance`, and withdraw `toAddressBalance`; verify SDK types before relying on them. |
 | Gas-pool/perps `gasBudget` | Current service accepts optional MIST `gasBudget`; v3.1.0 `ApiGasPoolSponsorBody` and `PerpetualsSponsorConfig` types still do not expose it. Extend the raw request type when using an exact budget. |
 | `POST /api/zklogin/create` | Use `jwt`, `maxEpoch`, base64 `ephemeralPublicKey`, and `randomness`. Do not send an ephemeral private keypair. |
+| `/api/perpetuals/ws/updates` price additions | Production emits `market.markPrice`, `oracle.markPrice`, and `oracle.bookPrice`, verified from live frames at 2026-09-03 19:45 UTC. The wire's nullable `bookPrice` becomes `undefined` through the SDK JSON reviver. |
 
 ## Known stale SDK calls
 

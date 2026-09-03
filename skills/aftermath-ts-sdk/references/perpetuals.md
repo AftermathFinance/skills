@@ -109,6 +109,13 @@ userCollateralChanges, topOfOrderbook, marketCandles
 ```
 
 `subscribeMarketCandles({ marketId, interval })` uses the same general socket.
+SDK response types model market messages with numeric `markPrice` and oracle
+messages with numeric `markPrice` and
+`bookPrice: number | undefined`. The wire sends `bookPrice: null` when either
+side of the book is empty, but the SDK JSON reviver converts it to `undefined`.
+The raw midpoint is exposed as `midPrice` by REST market-prices responses.
+These fields were verified from live production frames at 2026-09-03 19:45
+UTC; subscription formats and existing response fields are unchanged.
 For `subscribeUser`, the optional `withStopOrders` object contains
 `walletAddress`, `bytes`, and `signature`; against the current service, the
 base64-decoded bytes must be the reusable terms message. The proxy verifies
