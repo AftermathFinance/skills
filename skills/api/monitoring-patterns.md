@@ -141,11 +141,32 @@ async function fetchAllTrades(chId: string, pageSize = 50) {
 
 ```typescript
 const orderbookWs = new WebSocket("wss://aftermath.finance/api/ccxt/stream/orderbook?chId=0x...");
+let lastNonce: number | undefined; // undefined until the first delta after a snapshot/subscription
+
 orderbookWs.onmessage = (event) => {
   const delta = JSON.parse(event.data);
-  // apply orderbook deltas
+
+  // Skip the check on the first delta, and when an older server omits prevNonce.
+  if (
+    lastNonce !== undefined &&
+    delta.prevNonce !== undefined &&
+    delta.prevNonce !== lastNonce
+  ) {
+    lastNonce = undefined;
+    resyncOrderbook(); // missed a delta: discard the book, re-snapshot, resubscribe
+    return;
+  }
+
+  applyOrderbookDeltas(delta.asks, delta.bids); // both can be empty
+  lastNonce = delta.nonce;
 };
 ```
+
+Never detect gaps with `nonce === lastNonce + 1`; `nonce` increases but not
+always by 1. The native `orderbook` subscription follows the same rule with
+`orderbookDeltas.nonce` / `orderbookDeltas.prevNonce` as `"...n"` strings. See
+"Orderbook sync" in `ccxt.md` and `native.md`, including the known limitation
+on combining REST snapshots with stream deltas.
 
 ### Native WebSocket proxy
 

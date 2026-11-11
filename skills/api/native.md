@@ -244,6 +244,33 @@ Stream behavior notes:
 - User payloads also stream `twapOrders` (TWAP order objects or null) alongside stop orders.
 - Market payloads over WS always report `isFrozen: false` — the WS market stream carries no freeze state; read the real value from REST market endpoints.
 
+### Orderbook sync
+
+`orderbook` updates arrive as deltas. `nonce` and `prevNonce` are BigInt strings; `prevNonce` is omitted by servers that predate it, so treat it as optional.
+
+```json
+{
+  "orderbook": {
+    "marketId": "0x...",
+    "orderbookDeltas": {
+      "bidsDeltas": [{ "price": 1.25, "size": 3.0 }],
+      "asksDeltas": [],
+      "bidsTotalSizeDelta": 3.0,
+      "asksTotalSizeDelta": 0.0,
+      "nonce": "42n",
+      "prevNonce": "40n"
+    }
+  }
+}
+```
+
+- `prevNonce` is the `nonce` of the previous delta sent for that market on the same WebSocket connection.
+- Once you are applying deltas, each delta's `prevNonce` must equal the `nonce` of the delta before it. If it does not, you missed an update: discard the book and resync.
+- Skip that check on the first delta after a snapshot or a new subscription. The nonce also advances on changes that emit no delta, so the first `prevNonce` need not match anything you hold.
+- A delta can have empty `bidsDeltas` and `asksDeltas`. Still record its `nonce`.
+- `nonce` increases with each update, but do not assume it increases by 1. Its numbering will change on a date announced at least one week ahead; it will keep increasing.
+- Known limitation: building a book from a REST snapshot (`POST /api/perpetuals/markets/orderbooks`) plus WebSocket deltas is not reliable yet. The two can be served by different backend instances that number updates differently, so a snapshot `nonce` cannot be matched against delta nonces.
+
 ---
 
 ## Identifier Rules

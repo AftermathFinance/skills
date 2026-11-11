@@ -64,6 +64,31 @@ const orderbookWs = new WebSocket(
 const nativeWs = new WebSocket("wss://aftermath.finance/api/perpetuals/ws/updates");
 ```
 
+### Orderbook sync
+
+`/api/ccxt/stream/orderbook` sends deltas. `asks` and `bids` are `[price, amountDelta]` pairs; `nonce` and `prevNonce` are JSON numbers. `prevNonce` is omitted by servers that predate it, so treat it as optional.
+
+```json
+{
+  "asks": [[1.5, -2.0]],
+  "bids": [[1.25, 3.0]],
+  "timestamp": 1700000000000,
+  "nonce": 42,
+  "prevNonce": 40,
+  "datetime": "2023-11-14 22:13:20 UTC",
+  "symbol": "BTC/USD:USDC"
+}
+```
+
+- `prevNonce` is the `nonce` of the previous delta sent for that market on the same WebSocket connection.
+- Once you are applying deltas, each delta's `prevNonce` must equal the `nonce` of the delta before it. If it does not, you missed an update: discard the book and resync.
+- Skip that check on the first delta after a snapshot or a new subscription. The nonce also advances on changes that emit no delta, so the first `prevNonce` need not match anything you hold.
+- A delta can have empty `asks` and `bids`. Still record its `nonce`.
+- `nonce` increases with each update, but do not assume it increases by 1. Its numbering will change on a date announced at least one week ahead; it will keep increasing.
+- Known limitation: building a book from a REST snapshot (`POST /api/ccxt/orderbook`) plus stream deltas is not reliable yet. The two can be served by different backend instances that number updates differently, so a snapshot `nonce` cannot be matched against delta nonces.
+
+See `monitoring-patterns.md` for a delta handler that applies this check.
+
 ---
 
 ## CCXT IDs
